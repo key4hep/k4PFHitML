@@ -36,17 +36,6 @@ install(TARGETS k4ProjectTemplatePlugins
 
 include(CTest)
 
-get_filename_component(_k4pfhitml_install_prefix "${CMAKE_INSTALL_PREFIX}" ABSOLUTE BASE_DIR "${CMAKE_BINARY_DIR}")
-
-function(set_test_env _testname)
-  set_property(TEST ${_testname} APPEND PROPERTY ENVIRONMENT
-    LD_LIBRARY_PATH=${_k4pfhitml_install_prefix}/lib:${CMAKE_BINARY_DIR}:$<TARGET_FILE_DIR:k4ProjectTemplatePlugins>:$<TARGET_FILE_DIR:ROOT::Core>:$<TARGET_FILE_DIR:k4FWCore::k4FWCore>:$<TARGET_FILE_DIR:EDM4HEP::edm4hep>:$<TARGET_FILE_DIR:podio::podio>:$ENV{LD_LIBRARY_PATH}
-    PYTHONPATH=${_k4pfhitml_install_prefix}/python:${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}/genConfDir:$<TARGET_FILE_DIR:k4FWCore::k4FWCore>/../python:$ENV{PYTHONPATH}
-    PATH=$<TARGET_FILE_DIR:k4FWCore::k4FWCore>/../bin:$ENV{PATH}
-    K4PROJECTTEMPLATE=${CMAKE_CURRENT_LIST_DIR}/
-    )
-endfunction()
-
 SET(test_name "test_PerformHitPF")
 ExternalData_Add_Test(${test_name}
     NAME ${test_name}
@@ -54,7 +43,33 @@ ExternalData_Add_Test(${test_name}
             DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/clustering_test.onnx}
             DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/regression_neutral_test.onnx}
             DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/regression_charged_test.onnx})
-set_test_env(${test_name})
 set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 ExternalData_Add_Target(${test_name})
+
+get_filename_component(CURRENT_DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+set(test_environment "\
+LD_LIBRARY_PATH=\
+${PROJECT_BINARY_DIR}:\
+${PROJECT_BINARY_DIR}/${PROJECT_NAME}:\
+${CMAKE_CURRENT_BINARY_DIR}:\
+${CMAKE_CURRENT_BINARY_DIR}/genConfDir/${CURRENT_DIR_NAME}:\
+$ENV{LD_LIBRARY_PATH};\
+\
+GAUDI_PLUGIN_PATH=\
+${PROJECT_BINARY_DIR}:\
+${PROJECT_BINARY_DIR}/${PROJECT_NAME}:\
+${CMAKE_CURRENT_BINARY_DIR}:\
+${CMAKE_CURRENT_BINARY_DIR}/genConfDir/${CURRENT_DIR_NAME}:\
+$ENV{GAUDI_PLUGIN_PATH}:\
+$ENV{LD_LIBRARY_PATH};\
+\
+PYTHONPATH=\
+${PROJECT_BINARY_DIR}/${PROJECT_NAME}/genConfDir:\
+${CMAKE_CURRENT_BINARY_DIR}/genConfDir:\
+$ENV{PYTHONPATH};\
+"
+)
+get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
+set_tests_properties(${test_names} PROPERTIES ENVIRONMENT "${test_environment}")
 
