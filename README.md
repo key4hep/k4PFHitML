@@ -91,15 +91,54 @@ Alternatively you can source the nightlies instead of the releases:
 source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
 ```
 
+## Getting the models
+
+The three trained models are published at
+<https://key4hep.web.cern.ch/testFiles/k4PFHitML/>. Download them once into a
+`models/` directory at the root of this repository (about 120 MB in total),
+which is where `PerformMLPF.py` looks for them by default:
+
+``` bash
+mkdir -p models
+cd models
+for model in clustering_paper.onnx \
+             energy_correction_paper_neutral.onnx \
+             energy_correction_paper_charged_pid.onnx; do
+  curl -LO "https://key4hep.web.cern.ch/testFiles/k4PFHitML/${model}"
+done
+```
+
+## Input files
+
+The pipeline runs on a **reconstructed** EDM4hep file from CLD full simulation
+-- the output of `CLDReconstruction.py` from
+[CLDConfig](https://github.com/key4hep/CLDConfig), conventionally named
+`*_REC.edm4hep.root`. The raw `ddsim` output is *not* enough: the collections
+`PFHitML` reads only exist after digitisation and reconstruction.
+
+Such a file must contain:
+
+- the calorimeter hit collections `ECALBarrel`, `ECALEndcap`, `HCALBarrel`,
+  `HCALEndcap`, `HCALOther` and `MUON`, and
+- the track collection `SiTracks_Refitted`.
+
+
+A ready-made example file to try the pipeline on (Z->ss):
+
+``` bash
+curl -LO "https://cernbox.cern.ch/remote.php/dav/public-files/162pSTet8hUf4xD/out_reco_edm4hep_REC.edm4hep.root"
+```
+
 
 
 ## Execute
 
-
+Run from the root of the repository:
 
 ``` bash
 k4run k4PF-HitML/options/PerformMLPF.py --inputFiles <input.edm4hep.root> --outputFile output_HitPF.edm4hep.root
 ```
+
 
 `PerformMLPF.py` also accepts all the configurable parameters listed below
 (`--dpc_d_c`, `--bFieldTesla`, `--write_unassociated_tracks`, etc. --

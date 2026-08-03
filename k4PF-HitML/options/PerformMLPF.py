@@ -30,9 +30,9 @@ parser_group.add_argument("--inputFiles", nargs="+", metavar=("file1", "file2"),
                           help="One or multiple input files")
 parser_group.add_argument("--outputFile", default="output_HitPF.edm4hep.root")
 parser_group.add_argument("--num_ev", type=int, help="Number of events to process (-1 means all)", default=-1)
-parser_group.add_argument("--onnx_model_clustering", help="Path to ONNX model used for clustering", default="/eos/project/k/key4hep/www/key4hep/testFiles/k4PFHitML/clustering_paper.onnx")
-parser_group.add_argument("--onnx_model_properties_neutral", help="Path to neutral ONNX model used for energy regression and PID", default="/eos/project/k/key4hep/www/key4hep/testFiles/k4PFHitML/energy_correction_paper_neutral.onnx")
-parser_group.add_argument("--onnx_model_properties_charged", help="Path to charged ONNX model used for PID", default="/eos/project/k/key4hep/www/key4hep/testFiles/k4PFHitML/energy_correction_paper_charged_pid.onnx")
+parser_group.add_argument("--onnx_model_clustering", help="Path to ONNX model used for clustering", default="models/clustering_paper.onnx")
+parser_group.add_argument("--onnx_model_properties_neutral", help="Path to neutral ONNX model used for energy regression and PID", default="models/energy_correction_paper_neutral.onnx")
+parser_group.add_argument("--onnx_model_properties_charged", help="Path to charged ONNX model used for PID", default="models/energy_correction_paper_charged_pid.onnx")
 
 parser_group.add_argument("--dpc_d_c", type=float, default=0.1, help="DPC clustering: Gaussian kernel bandwidth for local density")
 parser_group.add_argument("--dpc_rho_min", type=float, default=0.05, help="DPC clustering: minimum local density for a point to be a cluster center")
