@@ -283,6 +283,15 @@ struct PFHitML final
       dumpClusteringOutput(outputs.at(0), m_eventCounter);
     }
 
+    if (clustering_input.batch_size == 0) {
+      info() << "Event " << m_eventCounter << ": no calorimeter hits or tracks, skipping" << endmsg;
+      ++m_eventCounter;
+      auto unassoc = edm4hep::TrackCollection{};
+      unassoc.setSubsetCollection();
+      return {edm4hep::ReconstructedParticleCollection{}, edm4hep::ParticleIDCollection{},
+              RecoTruthLinkCollection{}, std::move(unassoc)};
+    }
+
     /////////////////////////////////////
     ////////// CLUSTERING STEP //////////
     /////////////////////////////////////
