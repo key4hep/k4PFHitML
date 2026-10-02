@@ -264,6 +264,9 @@ struct PFHitML final
     // convert inputs to expected shape
     auto clustering_input = extractor.convertModelInputs(inputs_features);
 
+    info() << "nodes: " << clustering_input.batch_size << " (tracks: " << tracks.size() << ")" << endmsg;
+
+
     if (m_eventCounter < m_maxDumpEvents) {
       dumpClusteringInputs(clustering_input, m_eventCounter);
     }
