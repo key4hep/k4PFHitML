@@ -62,7 +62,6 @@ PreprocessedData DataPreprocessing::extract() const {
       {"ECAL_BARREL", &ecalbarrel_}, {"ECAL_ENDCAP", &ecalendcap_}, {"HCAL_BARREL", &hcalbarrel_},
       {"HCAL_ENDCAP", &hcalendcap_}, {"HCAL_OTHER", &hcalother_},   {"MUON", &muons_}};
 
-  int globalHitIndex = 0;
   int collectionIndex = 0;
 
   for (const auto& [name, hit_collection] : hit_collections) {
@@ -97,7 +96,6 @@ PreprocessedData DataPreprocessing::extract() const {
       // include mapping
       hit_mapping.push_back({htype, collectionIndex, hitIndex});
 
-      globalHitIndex += 1;
       hitIndex += 1;
     }
 
@@ -139,7 +137,6 @@ PreprocessedData DataPreprocessing::extract() const {
 
     hit_mapping.push_back({htype_c, collectionIndex, trackIndex});
 
-    globalHitIndex += 1;
     trackIndex += 1;
   }
 
