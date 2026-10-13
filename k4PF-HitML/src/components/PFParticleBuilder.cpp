@@ -167,6 +167,14 @@ static edm4hep::Vector3f energyWeightedBarycenter(const std::vector<edm4hep::Cal
   return {x / sumE, y / sumE, z / sumE};
 }
 
+
+// like Pandora (DDPfoCreator::CalculateTrackBasedReferencePoint), no-sibling branch
+static edm4hep::Vector3f trackReferencePoint(const edm4hep::Track& trk) {
+  const auto& ts = trk.getTrackStates()[0]; // AtIP
+  return {ts.D0 * std::cos(ts.phi), ts.D0 * std::sin(ts.phi), ts.Z0};
+}
+
+
 ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, float pidScore, float bFieldTesla,
                                       bool reassignLowPMuons, float muonToChargedHadronPThreshold) {
   ParticleRecoInfo out{};
@@ -187,14 +195,9 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
   const float mass = massFromPredictedClass(effectiveClass);
   const int chargeSign = chargeSignFromTrack(ts);
 
-  // Reference point = energy-weighted shower barycenter minus the picked
-  // track's calorimeter-entry position
-  const auto barycenter = energyWeightedBarycenter(shower.getCalorimeterHits());
-
   out.momentum = p3;
-  out.referencePoint = {barycenter.x - tsCalo.referencePoint.x, barycenter.y - tsCalo.referencePoint.y,
-                        barycenter.z - tsCalo.referencePoint.z};
-  out.energy = p;
+  out.referencePoint = trackReferencePoint(trk);
+  out.energy = std::sqrt(p * p + mass * mass); // this does not correspond to python implementation (only p)
   out.pidScore = pidScore;
   out.physicsClass = effectiveClass;
   out.mass = mass;
@@ -204,8 +207,8 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
   return out;
 }
 
-void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles,
-                      edm4hep::ParticleIDCollection& pfParticleIDs, const Shower&, const ParticleRecoInfo& recoInfo) {
+void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles, edm4hep::ParticleIDCollection& pfParticleIDs,
+                      edm4hep::ClusterCollection& pfClusters, const Shower& shower, const ParticleRecoInfo& recoInfo) {
   auto rp = pfParticles.create();
   auto pid = pfParticleIDs.create();
 
@@ -229,6 +232,29 @@ void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles,
   for (float s : recoInfo.pidScores) {
     pid.addToParameters(s);
   }
+
+  //add clusters similar as pandora
+  const auto& hits = shower.getCalorimeterHits();
+  if (!hits.empty()) {
+    auto cluster = pfClusters.create();
+    float hitEnergySum = 0.f;
+    for (const auto& hit : hits) {
+      cluster.addToHits(hit);
+      hitEnergySum += hit.getEnergy();
+    }
+
+    cluster.setEnergy(recoInfo.tracks.empty() ? recoInfo.energy : hitEnergySum);
+    cluster.setPosition(energyWeightedBarycenter(hits));
+
+    cluster.addToSubdetectorEnergies(shower.getCaloEnergy(shower.ecalHits_).first);
+    cluster.addToSubdetectorEnergies(shower.getCaloEnergy(shower.hcalHits_).first);
+    cluster.addToSubdetectorEnergies(shower.getCaloEnergy(shower.muonHits_).first);
+    cluster.addToSubdetectorEnergies(0.f);
+    cluster.addToSubdetectorEnergies(0.f);
+    cluster.addToSubdetectorEnergies(0.f);
+
+    rp.addToClusters(cluster);
+  }
 }
 
 edm4hep::Vector3f computeNeutralDirection(const edm4hep::Vector3f& referencePoint) {
@@ -243,6 +269,7 @@ edm4hep::Vector3f computeNeutralDirection(const edm4hep::Vector3f& referencePoin
   return {referencePoint.x / norm, referencePoint.y / norm, referencePoint.z / norm};
 }
 
+//only used for the direction
 edm4hep::Vector3f computeNeutralReferencePoint(const Shower& shower) {
   const auto& ecalHits = shower.ecalHits_;
   const auto& hcalHits = shower.hcalHits_;
@@ -257,6 +284,12 @@ edm4hep::Vector3f computeNeutralReferencePoint(const Shower& shower) {
 
   return useEcalOnly ? energyWeightedBarycenter(ecalHits) : energyWeightedBarycenter(shower.getCalorimeterHits());
 }
+
+// Pandora-like neutral reference point: energy-weighted barycenter of all cluster hits.
+edm4hep::Vector3f computeNeutralPandoraReferencePoint(const Shower& shower) {
+  return energyWeightedBarycenter(shower.getCalorimeterHits());
+}
+
 
 ParticleRecoInfo buildNeutralRecoInfo(const Shower&, int predictedClass, float pidScore, float predictedEnergy,
                                       const edm4hep::Vector3f& predictedDirection,

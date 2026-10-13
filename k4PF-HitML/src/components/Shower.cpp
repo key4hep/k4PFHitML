@@ -30,7 +30,7 @@ ShowerSplit splitShowersByTrackContent(const std::vector<Shower>& showers) {
   return out;
 }
 
-std::pair<float, float> Shower::getCaloEnergy(std::vector<edm4hep::CalorimeterHit> collection) const {
+std::pair<float, float> Shower::getCaloEnergy(const std::vector<edm4hep::CalorimeterHit> collection) const {
 
   float sum_e = 0;
   float sum_e_sq = 0;

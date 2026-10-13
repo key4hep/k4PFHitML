@@ -25,6 +25,7 @@
 // edm4hep imports
 #include "edm4hep/CaloHitMCParticleLinkCollection.h"
 #include "edm4hep/CalorimeterHitCollection.h"
+#include "edm4hep/ClusterCollection.h"
 #include "edm4hep/RecoMCParticleLinkCollection.h"
 #include "edm4hep/ReconstructedParticleCollection.h"
 #include "edm4hep/TrackCollection.h"
@@ -206,7 +207,7 @@ void dumpShowerRegressionOutput(const std::vector<float>& values, int64_t label,
 
 struct PFHitML final
     : k4FWCore::MultiTransformer<std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
-                                            RecoTruthLinkCollection, edm4hep::TrackCollection>(
+                                            RecoTruthLinkCollection, edm4hep::TrackCollection, edm4hep::ClusterCollection>(
 
           const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
           const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
@@ -218,7 +219,7 @@ struct PFHitML final
 
   PFHitML(const std::string& name, ISvcLocator* svcLoc)
       : k4FWCore::MultiTransformer<std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
-                                              RecoTruthLinkCollection, edm4hep::TrackCollection>(
+                                              RecoTruthLinkCollection, edm4hep::TrackCollection, edm4hep::ClusterCollection>(
             const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
             const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
             const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
@@ -233,11 +234,12 @@ struct PFHitML final
              KeyValues("SiTracksMCTruthLink", {"SiTracksMCTruthLink"})},
             {KeyValues("HitPF", {"HitPF"}), KeyValues("HitPFIDs", {"HitPFIDs"}), // Outputs
              KeyValues("HitPFMCTruthLink", {"HitPFMCTruthLink"}),
-             KeyValues("HitPFUnassociatedTracks", {"HitPFUnassociatedTracks"})}) {}
+             KeyValues("HitPFUnassociatedTracks", {"HitPFUnassociatedTracks"}),
+             KeyValues("HitPFClusters", {"HitPFClusters"})}) {}
 
   // main
   std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection, RecoTruthLinkCollection,
-             edm4hep::TrackCollection>
+             edm4hep::TrackCollection, edm4hep::ClusterCollection>
   operator()(const edm4hep::CalorimeterHitCollection& EcalBarrel_hits,
              const edm4hep::CalorimeterHitCollection& HcalBarrel_hits,
              const edm4hep::CalorimeterHitCollection& EcalEndcap_hits,
@@ -270,7 +272,7 @@ struct PFHitML final
       auto unassoc = edm4hep::TrackCollection{};
       unassoc.setSubsetCollection();
       return {edm4hep::ReconstructedParticleCollection{}, edm4hep::ParticleIDCollection{},
-              RecoTruthLinkCollection{}, std::move(unassoc)};
+              RecoTruthLinkCollection{}, std::move(unassoc), edm4hep::ClusterCollection{}};
     }
 
 
@@ -349,6 +351,7 @@ struct PFHitML final
     const std::vector<int> neutralClassMap = {2, 3};
 
     auto HitPF = edm4hep::ReconstructedParticleCollection{};
+    auto HitPFClusters = edm4hep::ClusterCollection{};
     auto HitPFIDs = edm4hep::ParticleIDCollection{};
     auto HitPFMCTruthLink = RecoTruthLinkCollection{};
 
@@ -376,7 +379,7 @@ struct PFHitML final
       evalBuilder.addRecoResult(idx, recoInfo);
 
       const auto recoIndex = HitPF.size();
-      fillRecoParticle(HitPF, HitPFIDs, showers[idx], recoInfo);
+      fillRecoParticle(HitPF, HitPFIDs, HitPFClusters, showers[idx], recoInfo);
 
       const auto reco = HitPF.at(recoIndex);
       fillRecoTruthLink(HitPFMCTruthLink, reco, showerTruthMatches[idx]);
@@ -395,8 +398,9 @@ struct PFHitML final
       const auto& pidLogits = findPIDOutput(*m_onnx_prop_neutral, prop_outputs);
       PIDPrediction pid = decodePIDLogits(pidLogits, neutralClassMap);
       float predictedEnergy = prop_outputs[0].at(0);
-      edm4hep::Vector3f predictedReferencePoint = computeNeutralReferencePoint(showers[idx]);
-      edm4hep::Vector3f predictedDirection = computeNeutralDirection(predictedReferencePoint);
+      edm4hep::Vector3f predictedDirection = computeNeutralDirection(computeNeutralReferencePoint(showers[idx]));
+      edm4hep::Vector3f predictedReferencePoint = computeNeutralPandoraReferencePoint(showers[idx]);
+
 
       if (m_eventCounter < m_maxDumpEvents) {
         std::vector<float> combined{predictedEnergy};
@@ -411,7 +415,7 @@ struct PFHitML final
       evalBuilder.addRecoResult(idx, recoInfo);
 
       const auto recoIndex = HitPF.size();
-      fillRecoParticle(HitPF, HitPFIDs, showers[idx], recoInfo);
+      fillRecoParticle(HitPF, HitPFIDs, HitPFClusters, showers[idx], recoInfo);
 
       const auto reco = HitPF.at(recoIndex);
       fillRecoTruthLink(HitPFMCTruthLink, reco, showerTruthMatches[idx]);
@@ -440,8 +444,8 @@ struct PFHitML final
 
     ++m_eventCounter;
 
-    return {std::move(HitPF), std::move(HitPFIDs), std::move(HitPFMCTruthLink),
-            std::move(HitPFUnassociatedTracks)}; // outputs
+    return {std::move(HitPF), std::move(HitPFIDs),  std::move(HitPFMCTruthLink),
+            std::move(HitPFUnassociatedTracks), std::move(HitPFClusters)}; // outputs
   }
 
   StatusCode initialize() override {

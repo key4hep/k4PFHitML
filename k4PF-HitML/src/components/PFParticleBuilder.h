@@ -26,6 +26,7 @@
 #include "ONNXHelper.h"
 #include "edm4hep/ParticleIDCollection.h"
 #include "edm4hep/ReconstructedParticleCollection.h"
+#include "edm4hep/ClusterCollection.h"
 #include "edm4hep/Track.h"
 #include "edm4hep/Vector3f.h"
 #include <vector>
@@ -70,9 +71,11 @@ ParticleRecoInfo buildNeutralRecoInfo(const Shower& shower, int predictedClass, 
 
 edm4hep::Vector3f computeNeutralReferencePoint(const Shower& shower);
 
+edm4hep::Vector3f computeNeutralPandoraReferencePoint(const Shower& shower);
+
 edm4hep::Vector3f computeNeutralDirection(const edm4hep::Vector3f& referencePoint);
 
 void fillRecoParticle(edm4hep::ReconstructedParticleCollection& particles, edm4hep::ParticleIDCollection& pids,
-                      const Shower& shower, const ParticleRecoInfo& info);
+                      edm4hep::ClusterCollection& clusters, const Shower& shower, const ParticleRecoInfo& info);
 
 #endif

@@ -60,6 +60,11 @@ missed).
 - `HitPFUnassociatedTracks` (`TrackCollection`, opt-in): tracks that never
   ended up in any shower (DPC noise, or removed by the E/p consistency cut),
   so never made it onto any `HitPF` particle -- see below.
+- `HitPFClusters` (`ClusterCollection`): one cluster per `HitPF` particle
+  with calorimeter hits (none for track-only charged particles), linked via
+  `HitPF.clusters` -- hits, energy (regressed energy for neutrals, hit energy
+  sum for charged), and energy-weighted position
+
 
 ## Dependencies
 
@@ -145,7 +150,7 @@ k4run k4PF-HitML/options/PerformMLPF.py --inputFiles <input.edm4hep.root> --outp
 run with `--help` for the full list).
 
 The output is a ROOT file containing the input collections (`keep *`) plus
-the `HitPF`/`HitPFIDs`/`HitPFMCTruthLink` (and, if enabled,
+the `HitPF`/`HitPFIDs`/`HitPFMCTruthLink`/ `HitPFClusters` (and, if enabled,
 `HitPFUnassociatedTracks`) collections described above.
 
 ## Source files
@@ -204,13 +209,11 @@ All exposed as `Gaudi::Property`s on `PFHitML`, settable from
 ## HitPF output collection conventions
 
 
-- **Reference point** (`referencePoint`): for charged particles this is the
-  energy-weighted shower barycenter *minus* the driving track's
-  calorimeter-entry position (`PFParticleBuilder.cpp::buildChargedRecoInfo`),
-  matching Python's `PickPAtDCA.predict()` (`tools_for_regression.py`:
-  `barycenters - p_xyz`). For neutral
-  particles, `referencePoint` is instead an absolute shower-barycenter position
-  (`computeNeutralReferencePoint`)
+- **Reference point** (`referencePoint`):
+  Charged: the driving track's point of closest approach,
+  `(D0·cos φ, D0·sin φ, Z0)` from its `AtIP` track state. Neutral: the
+  energy-weighted barycentre of all shower hits. The neutral direction still
+  uses the ECAL-only barycentre
 
 - **Energy** (`energy`): for neutral particles this is a regression output.
   For charged particles it is the driving track's momentum magnitude `|p|`.

@@ -41,7 +41,7 @@ public:
 
   const std::vector<edm4hep::Track>& getTracks() const { return tracks_; }
 
-  std::pair<float, float> getCaloEnergy(std::vector<edm4hep::CalorimeterHit> collection) const;
+  std::pair<float, float> getCaloEnergy(const std::vector<edm4hep::CalorimeterHit> collection) const;
 
   float getTrackMomentum_mean(float bFieldTesla = 2.0f); // retruns mean track momentum per shower
 
