@@ -182,7 +182,6 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
   const auto& trk = pickBestTrack(shower);
   out.tracks = {trk};
   const auto& ts = trk.getTrackStates()[0];     // AtIP -- momentum, matches Python's pos_pxpypz_at_vertex
-  const auto& tsCalo = trk.getTrackStates()[3]; // AtCalorimeter -- reference point
 
   const auto p3 = momentumFromTrackState(ts, bFieldTesla);
   const float p = momentumMagnitude(p3);
