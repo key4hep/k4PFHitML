@@ -24,9 +24,9 @@
 #include <limits>
 
 #include "ONNXHelper.h"
+#include "edm4hep/ClusterCollection.h"
 #include "edm4hep/ParticleIDCollection.h"
 #include "edm4hep/ReconstructedParticleCollection.h"
-#include "edm4hep/ClusterCollection.h"
 #include "edm4hep/Track.h"
 #include "edm4hep/Vector3f.h"
 #include <vector>

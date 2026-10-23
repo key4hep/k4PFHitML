@@ -167,13 +167,11 @@ static edm4hep::Vector3f energyWeightedBarycenter(const std::vector<edm4hep::Cal
   return {x / sumE, y / sumE, z / sumE};
 }
 
-
 // like Pandora (DDPfoCreator::CalculateTrackBasedReferencePoint), no-sibling branch
 static edm4hep::Vector3f trackReferencePoint(const edm4hep::Track& trk) {
   const auto& ts = trk.getTrackStates()[0]; // AtIP
   return {ts.D0 * std::cos(ts.phi), ts.D0 * std::sin(ts.phi), ts.Z0};
 }
-
 
 ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, float pidScore, float bFieldTesla,
                                       bool reassignLowPMuons, float muonToChargedHadronPThreshold) {
@@ -181,7 +179,7 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
 
   const auto& trk = pickBestTrack(shower);
   out.tracks = {trk};
-  const auto& ts = trk.getTrackStates()[0];     // AtIP -- momentum, matches Python's pos_pxpypz_at_vertex
+  const auto& ts = trk.getTrackStates()[0]; // AtIP -- momentum, matches Python's pos_pxpypz_at_vertex
 
   const auto p3 = momentumFromTrackState(ts, bFieldTesla);
   const float p = momentumMagnitude(p3);
@@ -206,8 +204,9 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
   return out;
 }
 
-void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles, edm4hep::ParticleIDCollection& pfParticleIDs,
-                      edm4hep::ClusterCollection& pfClusters, const Shower& shower, const ParticleRecoInfo& recoInfo) {
+void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles,
+                      edm4hep::ParticleIDCollection& pfParticleIDs, edm4hep::ClusterCollection& pfClusters,
+                      const Shower& shower, const ParticleRecoInfo& recoInfo) {
   auto rp = pfParticles.create();
   auto pid = pfParticleIDs.create();
 
@@ -232,7 +231,7 @@ void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles, edm
     pid.addToParameters(s);
   }
 
-  //add clusters similar as pandora
+  // add clusters similar as pandora
   const auto& hits = shower.getCalorimeterHits();
   if (!hits.empty()) {
     auto cluster = pfClusters.create();
@@ -268,7 +267,7 @@ edm4hep::Vector3f computeNeutralDirection(const edm4hep::Vector3f& referencePoin
   return {referencePoint.x / norm, referencePoint.y / norm, referencePoint.z / norm};
 }
 
-//only used for the direction
+// only used for the direction
 edm4hep::Vector3f computeNeutralReferencePoint(const Shower& shower) {
   const auto& ecalHits = shower.ecalHits_;
   const auto& hcalHits = shower.hcalHits_;
@@ -288,7 +287,6 @@ edm4hep::Vector3f computeNeutralReferencePoint(const Shower& shower) {
 edm4hep::Vector3f computeNeutralPandoraReferencePoint(const Shower& shower) {
   return energyWeightedBarycenter(shower.getCalorimeterHits());
 }
-
 
 ParticleRecoInfo buildNeutralRecoInfo(const Shower&, int predictedClass, float pidScore, float predictedEnergy,
                                       const edm4hep::Vector3f& predictedDirection,
