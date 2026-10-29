@@ -214,6 +214,7 @@ void fillRecoParticle(edm4hep::ReconstructedParticleCollection& pfParticles,
   rp.setGoodnessOfPID(recoInfo.pidScore);
   rp.setPDG(recoInfo.pdg);
 
+  pid.setParticle(rp);
   pid.setLikelihood(recoInfo.pidScore);
   pid.setType(recoInfo.physicsClass);
   pid.setPDG(recoInfo.pdg);
