@@ -24,6 +24,7 @@
 #include "edm4hep/ReconstructedParticleCollection.h"
 #include "edm4hep/TrackCollection.h"
 #include "edm4hep/TrackerHit.h"
+#include "edm4hep/utils/vector_utils.h"
 
 #include "Helpers.h"
 #include "Shower.h"
@@ -113,7 +114,7 @@ PreprocessedData DataPreprocessing::extract() const {
       continue;
     }
 
-    float p = momentumMagnitude(momentumFromTrackState(*trackstate_ip, bFieldTesla_));
+    float p = edm4hep::utils::magnitude(momentumFromTrackState(*trackstate_ip, bFieldTesla_));
 
     features["p_tracks"].push_back(p);
     features["e_tracks"].push_back(0);
@@ -325,8 +326,9 @@ std::vector<PropertyInputs> DataPreprocessing::prepare_prop(std::vector<Shower> 
     float mean_y = mean_var(pos_y);
     float mean_z = mean_var(pos_z);
 
-    float eta = calculate_eta(mean_x, mean_y, mean_z);
-    float phi = calculate_phi(mean_x, mean_y);
+    const edm4hep::Vector3f mean_pos{mean_x, mean_y, mean_z};
+    float eta = edm4hep::utils::eta(mean_pos);
+    float phi = edm4hep::utils::angleAzimuthal(mean_pos);
 
     // add the global features
 

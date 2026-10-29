@@ -23,6 +23,7 @@
 
 #include "edm4hep/Track.h"
 #include "edm4hep/TrackState.h"
+#include "edm4hep/utils/vector_utils.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -173,7 +174,7 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
   const auto ts = trk.getTrackState(edm4hep::TrackState::AtIP).value(); // matches Python's pos_pxpypz_at_vertex
 
   const auto p3 = momentumFromTrackState(ts, bFieldTesla);
-  const float p = momentumMagnitude(p3);
+  const float p = edm4hep::utils::magnitude(p3);
 
   // reassign low momentum muon to CH
   int effectiveClass = predictedClass;

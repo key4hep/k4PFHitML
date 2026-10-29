@@ -47,26 +47,6 @@ float disperion(Shower shower_i, std::vector<edm4hep::CalorimeterHit> collection
   return dispersion;
 }
 
-float calculate_phi(float x, float y) {
-  // matches numpy arctan2(y, x)
-  return std::atan2(y, x);
-}
-
-float calculate_eta(float x, float y, float z) {
-  // theta = arctan2( sqrt(x^2 + y^2), z )
-  float r = std::sqrt(x * x + y * y);
-  float theta = std::atan2(r, z);
-
-  // eta = -log( tan(theta/2) )
-  float tan_half_theta = std::tan(theta / 2.0f);
-
-  // avoid log(0) if theta is 0
-  if (tan_half_theta == 0.0f)
-    return 0.0f;
-
-  return -std::log(tan_half_theta);
-}
-
 edm4hep::Vector3f momentumFromTrackState(const edm4hep::TrackState& ts, float bFieldTesla) {
   // speed of light in units of GeV / (T mm)
   constexpr float c_light = 2.99792e-4f;
@@ -76,8 +56,6 @@ edm4hep::Vector3f momentumFromTrackState(const edm4hep::TrackState& ts, float bF
   const float pt = c_light * std::abs(bFieldTesla / ts.omega);
   return {std::cos(ts.phi) * pt, std::sin(ts.phi) * pt, ts.tanLambda * pt};
 }
-
-float momentumMagnitude(const edm4hep::Vector3f& p) { return std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z); }
 
 std::vector<std::vector<float>> one_hot_encode(std::vector<int> values, int n_classes) {
   std::vector<std::vector<float>> out(values.size(), std::vector<float>(n_classes, 0.0f));

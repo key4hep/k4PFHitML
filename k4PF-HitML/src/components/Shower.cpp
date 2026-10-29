@@ -19,6 +19,8 @@
 #include "Shower.h"
 #include "Helpers.h"
 
+#include "edm4hep/utils/vector_utils.h"
+
 ShowerSplit splitShowersByTrackContent(const std::vector<Shower>& showers) {
   ShowerSplit out;
   for (size_t i = 0; i < showers.size(); ++i) {
@@ -70,7 +72,7 @@ float Shower::getTrackMomentum_mean(float bFieldTesla) {
   float p_sum = 0;
   for (const auto& track : tracks_) {
     p_sum +=
-        momentumMagnitude(momentumFromTrackState(track.getTrackState(edm4hep::TrackState::AtIP).value(), bFieldTesla));
+        edm4hep::utils::magnitude(momentumFromTrackState(track.getTrackState(edm4hep::TrackState::AtIP).value(), bFieldTesla));
   }
 
   return p_sum / n_tracks;
@@ -157,7 +159,7 @@ const std::tuple<std::vector<float>, std::vector<float>> Shower::get_ep(float bF
   std::vector<float> track_p;
 
   for (const auto& track_i : tracks_) {
-    const float p = momentumMagnitude(
+    const float p = edm4hep::utils::magnitude(
         momentumFromTrackState(track_i.getTrackState(edm4hep::TrackState::AtIP).value(), bFieldTesla));
 
     track_e.push_back(0);
