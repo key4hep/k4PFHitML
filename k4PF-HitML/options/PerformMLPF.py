@@ -76,27 +76,27 @@ geoservice.OutputLevel = INFO
 geoservice.EnableGeant4Geo = False
 
 
-Multitransformer = PFHitML("PFHitML",
-                            model_path_clustering=args.onnx_model_clustering,
-                            model_path_properties_neutral=args.onnx_model_properties_neutral,
-                            model_path_properties_charged=args.onnx_model_properties_charged,
-                            dpc_d_c=args.dpc_d_c,
-                            dpc_rho_min=args.dpc_rho_min,
-                            dpc_delta_min=args.dpc_delta_min,
-                            dpc_core_radius=args.dpc_core_radius,
-                            truth_iou_threshold=args.truth_iou_threshold,
-                            truth_barrel_radius=args.truth_barrel_radius,
-                            truth_n_barrel_sides=args.truth_n_barrel_sides,
-                            truth_endcap_z=args.truth_endcap_z,
-                            reassign_low_p_muons=args.reassign_low_p_muons,
-                            muon_to_charged_hadron_p_threshold=args.muon_to_charged_hadron_p_threshold,
-                            writeUnassociatedTracks=args.writeUnassociatedTracks,
-                    )
+hitpf = PFHitML("PFHitML",
+                ClusteringModelPath=args.onnx_model_clustering,
+                NeutralModelPath=args.onnx_model_properties_neutral,
+                ChargedModelPath=args.onnx_model_properties_charged,
+                DPCKernelWidth=args.dpc_d_c,
+                DPCMinDensity=args.dpc_rho_min,
+                DPCMinDelta=args.dpc_delta_min,
+                DPCCoreRadius=args.dpc_core_radius,
+                TruthIoUThreshold=args.truth_iou_threshold,
+                TruthBarrelRadius=args.truth_barrel_radius,
+                TruthNBarrelSides=args.truth_n_barrel_sides,
+                TruthEndcapZ=args.truth_endcap_z,
+                ReassignLowPMuons=args.reassign_low_p_muons,
+                MuonToChargedHadronPThreshold=args.muon_to_charged_hadron_p_threshold,
+                WriteUnassociatedTracks=args.writeUnassociatedTracks,
+                )
 
 
 svc.outputCommands = ["keep *"]
 
-ApplicationMgr(TopAlg=[Multitransformer],
+ApplicationMgr(TopAlg=[hitpf],
                EvtSel="NONE",
                EvtMax=args.num_ev,
                #ExtSvc=[k4DataSvc("EventDataSvc")],

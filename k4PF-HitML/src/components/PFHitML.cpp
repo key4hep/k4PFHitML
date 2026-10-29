@@ -233,8 +233,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
                 const TrackTruthLinkCollection&)>(
             name, svcLoc,
             {KeyValues("EcalBarrelHits", {"ECALBarrel"}), KeyValues("HcalBarrelHits", {"HCALBarrel"}),
-             KeyValues("EcalEndcaplHits", {"ECALEndcap"}), KeyValues("HcalEndcapHits", {"HCALEndcap"}),
-             KeyValues("HcalOtherHits", {"HCALOther"}), KeyValues("MUON", {"MUON"}),
+             KeyValues("EcalEndcapHits", {"ECALEndcap"}), KeyValues("HcalEndcapHits", {"HCALEndcap"}),
+             KeyValues("HcalOtherHits", {"HCALOther"}), KeyValues("MuonHits", {"MUON"}),
              KeyValues("Tracks", {"SiTracks_Refitted"}), KeyValues("MCParticles", {"MCParticles"}),
              KeyValues("CalohitMCTruthLink", {"CalohitMCTruthLink"}),
              KeyValues("SiTracksMCTruthLink", {"SiTracksMCTruthLink"})},
@@ -291,7 +291,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     debug() << "================ EVENT " << m_eventCounter << " ================" << endmsg;
 
-    std::vector<std::vector<float>> outputs = m_onnx->runNamed(clustering_input.inputs);
+    std::vector<std::vector<float>> outputs = m_onnxClustering->runNamed(clustering_input.inputs);
 
     // get two outputs, first one has shape (N,4) (three coordinates in embedding space + beta)
     //  second output is  dummy for pred_energy_corr (not needed at this stage)
@@ -306,7 +306,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     // expect output tensor of length N with cluster labels
 
-    Clustering clusterer(dpc_d_c.value(), dpc_rho_min.value(), dpc_delta_min.value(), dpc_core_radius.value());
+    Clustering clusterer(m_dpcKernelWidth.value(), m_dpcMinDensity.value(), m_dpcMinDelta.value(),
+                         m_dpcCoreRadius.value());
     const int64_t dpcDumpIdx = (m_eventCounter < m_maxDumpEvents) ? static_cast<int64_t>(m_eventCounter) : -1;
     torch::Tensor cluster_label = clusterer.get_clustering(outputs[0], inputs_features["node_energy"],
                                                            dpcDumpIdx); // length of hits [000 3 7 7 7 7 10 2 2 2 ..]
@@ -330,10 +331,10 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     // truth linking
     TruthMatchConfig truthCfg;
-    truthCfg.iouThreshold = truth_iou_threshold.value();
-    truthCfg.barrelRadius = truth_barrel_radius.value();
-    truthCfg.nBarrelSides = truth_n_barrel_sides.value();
-    truthCfg.endCapZ = truth_endcap_z.value();
+    truthCfg.iouThreshold = m_truthIoUThreshold.value();
+    truthCfg.barrelRadius = m_truthBarrelRadius.value();
+    truthCfg.nBarrelSides = m_truthNBarrelSides.value();
+    truthCfg.endCapZ = m_truthEndcapZ.value();
 
     const auto showerTruthMatches = matchShowersByIoU(showers, caloTruthLinks, trackTruthLinks, truthCfg);
 
@@ -367,8 +368,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     // loop over showers per event
     for (size_t idx : split.charged) {
 
-      auto prop_outputs = m_onnx_prop_charged->runNamed(prop_inputs[idx].inputs);
-      const auto& pidLogits = findPIDOutput(*m_onnx_prop_charged, prop_outputs);
+      auto prop_outputs = m_onnxCharged->runNamed(prop_inputs[idx].inputs);
+      const auto& pidLogits = findPIDOutput(*m_onnxCharged, prop_outputs);
       PIDPrediction pid = decodePIDLogits(pidLogits, chargedClassMap);
 
       if (m_eventCounter < m_maxDumpEvents) {
@@ -377,8 +378,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
       }
 
       ParticleRecoInfo recoInfo =
-          buildChargedRecoInfo(showers[idx], pid.physicsClass, pid.score, m_bFieldTesla, reassign_low_p_muons.value(),
-                               muon_to_charged_hadron_p_threshold.value());
+          buildChargedRecoInfo(showers[idx], pid.physicsClass, pid.score, m_bFieldTesla, m_reassignLowPMuons.value(),
+                               m_muonToChargedHadronPThreshold.value());
       recoInfo.pidScores = pid.scores;
 
       evalBuilder.addRecoResult(idx, recoInfo);
@@ -399,8 +400,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     for (size_t idx : split.neutral) {
 
-      auto prop_outputs = m_onnx_prop_neutral->runNamed(prop_inputs[idx].inputs);
-      const auto& pidLogits = findPIDOutput(*m_onnx_prop_neutral, prop_outputs);
+      auto prop_outputs = m_onnxNeutral->runNamed(prop_inputs[idx].inputs);
+      const auto& pidLogits = findPIDOutput(*m_onnxNeutral, prop_outputs);
       PIDPrediction pid = decodePIDLogits(pidLogits, neutralClassMap);
       float predictedEnergy = prop_outputs[0].at(0);
       edm4hep::Vector3f predictedDirection = computeNeutralDirection(computeNeutralReferencePoint(showers[idx]));
@@ -431,7 +432,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     // invariant mass calculations.
     auto HitPFUnassociatedTracks = edm4hep::TrackCollection{};
     HitPFUnassociatedTracks.setSubsetCollection();
-    if (writeUnassociatedTracks.value()) {
+    if (m_writeUnassociatedTracks.value()) {
       std::unordered_set<ObjectIDKey, ObjectIDKeyHash> usedTrackKeys;
       for (const auto& shower_i : showers) {
         for (const auto& trk : shower_i.getTracks()) {
@@ -470,65 +471,66 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     info() << "Initializing PFHitML and loading model..." << endmsg;
 
-    m_onnx = std::make_unique<ONNXHelper>(model_path_clustering.value());
+    m_onnxClustering = std::make_unique<ONNXHelper>(m_clusteringModelPath.value());
 
-    m_onnx_prop_neutral = std::make_unique<ONNXHelper>(model_path_properties_neutral.value());
+    m_onnxNeutral = std::make_unique<ONNXHelper>(m_neutralModelPath.value());
 
-    m_onnx_prop_charged = std::make_unique<ONNXHelper>(model_path_properties_charged.value());
+    m_onnxCharged = std::make_unique<ONNXHelper>(m_chargedModelPath.value());
 
     return StatusCode::SUCCESS;
   }
 
 private:
-  std::unique_ptr<ONNXHelper> m_onnx;
-  std::unique_ptr<ONNXHelper> m_onnx_prop_neutral;
-  std::unique_ptr<ONNXHelper> m_onnx_prop_charged;
+  std::unique_ptr<ONNXHelper> m_onnxClustering;
+  std::unique_ptr<ONNXHelper> m_onnxNeutral;
+  std::unique_ptr<ONNXHelper> m_onnxCharged;
   mutable std::size_t m_eventCounter{0}; // for debugging
 
   rv::RVec<std::string> vars;
 
-  Gaudi::Property<std::string> model_path_clustering{this, "model_path_clustering",
+  Gaudi::Property<std::string> m_clusteringModelPath{this, "ClusteringModelPath",
                                                      "/eos/user/l/lherrman/FCC/models/clustering_truth_update.onnx",
                                                      "Path to the ONNX clustering model"};
 
-  Gaudi::Property<std::string> model_path_properties_neutral{
-      this, "model_path_properties_neutral", "/eos/user/l/lherrman/FCC/models/energy_correction_paper_neutral.onnx",
+  Gaudi::Property<std::string> m_neutralModelPath{
+      this, "NeutralModelPath", "/eos/user/l/lherrman/FCC/models/energy_correction_paper_neutral.onnx",
       "Path to the ONNX model for neutral energy regression and PID"};
 
-  Gaudi::Property<std::string> model_path_properties_charged{
-      this, "model_path_properties_charged", "/eos/user/l/lherrman/FCC/models/energy_correction_paper_charged_pid.onnx",
+  Gaudi::Property<std::string> m_chargedModelPath{
+      this, "ChargedModelPath", "/eos/user/l/lherrman/FCC/models/energy_correction_paper_charged_pid.onnx",
       "Path to the ONNX model for charged energy regression and PID"};
 
   Gaudi::Property<std::size_t> m_maxDumpEvents{
-      this, "maxDumpEvents", 0,
+      this, "MaxDumpEvents", 0,
       "Number of leading events to dump validation tensors for into dump/ (0 disables dumping)"};
 
-  Gaudi::Property<float> dpc_d_c{this, "dpc_d_c", 0.1f, "DPC clustering: Gaussian kernel bandwidth for local density"};
+  Gaudi::Property<float> m_dpcKernelWidth{this, "DPCKernelWidth", 0.1f,
+                                          "DPC clustering: Gaussian kernel bandwidth for local density"};
 
-  Gaudi::Property<float> dpc_rho_min{this, "dpc_rho_min", 0.05f,
-                                     "DPC clustering: minimum local density for a point to be a cluster center"};
+  Gaudi::Property<float> m_dpcMinDensity{this, "DPCMinDensity", 0.05f,
+                                         "DPC clustering: minimum local density for a point to be a cluster center"};
 
-  Gaudi::Property<float> dpc_delta_min{
-      this, "dpc_delta_min", 0.4f,
+  Gaudi::Property<float> m_dpcMinDelta{
+      this, "DPCMinDelta", 0.4f,
       "DPC clustering: minimum distance-to-higher-density for a point to be a cluster center"};
 
-  Gaudi::Property<float> dpc_core_radius{
-      this, "dpc_core_radius", 0.5f,
+  Gaudi::Property<float> m_dpcCoreRadius{
+      this, "DPCCoreRadius", 0.5f,
       "DPC clustering: max distance to a center for a hit to be kept as a core (non-halo) member"};
 
-  Gaudi::Property<float> truth_iou_threshold{this, "truth_iou_threshold", 0.25f,
+  Gaudi::Property<float> m_truthIoUThreshold{this, "TruthIoUThreshold", 0.25f,
                                              "Truth matching: minimum IoU for a shower-to-MCParticle match"};
 
-  Gaudi::Property<float> truth_barrel_radius{
-      this, "truth_barrel_radius", 2150.f,
+  Gaudi::Property<float> m_truthBarrelRadius{
+      this, "TruthBarrelRadius", 2150.f,
       "Truth matching: detector barrel radius [mm] used to decide if a vertex is inside the calorimeter"};
 
-  Gaudi::Property<int> truth_n_barrel_sides{
-      this, "truth_n_barrel_sides", 12,
+  Gaudi::Property<int> m_truthNBarrelSides{
+      this, "TruthNBarrelSides", 12,
       "Truth matching: number of barrel polygon sides used for the in-calorimeter check"};
 
-  Gaudi::Property<float> truth_endcap_z{
-      this, "truth_endcap_z", 2307.f,
+  Gaudi::Property<float> m_truthEndcapZ{
+      this, "TruthEndcapZ", 2307.f,
       "Truth matching: detector endcap |z| [mm] used to decide if a vertex is inside the calorimeter"};
 
   Gaudi::Property<std::string> m_geoSvcName{this, "GeoSvcName", "GeoSvc",
@@ -536,17 +538,17 @@ private:
 
   float m_bFieldTesla{0.f}; // Bz at the origin [T], set in initialize() from DD4hep
 
-  Gaudi::Property<bool> reassign_low_p_muons{this, "reassign_low_p_muons", true,
-                                             "Reassign charged candidates predicted as muon with momentum below "
-                                             "muon_to_charged_hadron_p_threshold to charged hadron"};
+  Gaudi::Property<bool> m_reassignLowPMuons{this, "ReassignLowPMuons", true,
+                                            "Reassign charged candidates predicted as muon with momentum below "
+                                            "MuonToChargedHadronPThreshold to charged hadron"};
 
-  Gaudi::Property<float> muon_to_charged_hadron_p_threshold{
-      this, "muon_to_charged_hadron_p_threshold", 1.0f,
-      "Momentum threshold [GeV] below which a predicted muon is reassigned to charged hadron (if reassign_low_p_muons "
-      "is set)"};
+  Gaudi::Property<float> m_muonToChargedHadronPThreshold{
+      this, "MuonToChargedHadronPThreshold", 1.0f,
+      "Momentum threshold [GeV] below which a predicted muon is reassigned to charged hadron (if ReassignLowPMuons is "
+      "set)"};
 
-  Gaudi::Property<bool> writeUnassociatedTracks{
-      this, "writeUnassociatedTracks", false,
+  Gaudi::Property<bool> m_writeUnassociatedTracks{
+      this, "WriteUnassociatedTracks", false,
       "Write tracks that were not assigned to any shower (DPC noise or failed the E/p consistency "
       "check) into the HitPFUnassociatedTracks output collection"};
 };

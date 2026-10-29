@@ -15,7 +15,7 @@ This package targets the **CLD** detector concept and geometry: input
 collection names (`ECALBarrel`, `ECALEndcap`, `HCALBarrel`, `HCALEndcap`,
 `HCALOther`, `MUON`, `SiTracks_Refitted`, see the `KeyValues` in
 `PFHitML.cpp`), the truth-matching barrel/endcap geometry constants
-(`truth_barrel_radius`, `truth_n_barrel_sides`, `truth_endcap_z`), and the
+(`TruthBarrelRadius`, `TruthNBarrelSides`, `TruthEndcapZ`), and the
 models themselves.
 
 ## Pipeline overview
@@ -186,23 +186,24 @@ the `HitPF`/`HitPFIDs`/`HitPFMCTruthLink`/ `HitPFClusters` (and, if enabled,
 All exposed as `Gaudi::Property`s on `PFHitML`, settable from
 `options/PerformMLPF.py`:
 
-- The three ONNX model paths (`model_path_clustering`,
-  `model_path_properties_neutral`, `model_path_properties_charged` --
+- The three ONNX model paths (`ClusteringModelPath`,
+  `NeutralModelPath`, `ChargedModelPath` --
   `--onnx_model_clustering`/`--onnx_model_properties_neutral`/
   `--onnx_model_properties_charged` on the command line).
-- Density Peak Clustering parameters (`dpc_d_c`, `dpc_rho_min`,
-  `dpc_delta_min`, `dpc_core_radius`).
-- Truth matching parameters (`truth_iou_threshold`, `truth_barrel_radius`,
-  `truth_n_barrel_sides`, `truth_endcap_z`).
+- Density Peak Clustering parameters (`DPCKernelWidth`, `DPCMinDensity`,
+  `DPCMinDelta`, `DPCCoreRadius`; `--dpc_d_c`, `--dpc_rho_min`,
+  `--dpc_delta_min`, `--dpc_core_radius` on the command line).
+- Truth matching parameters (`TruthIoUThreshold`, `TruthBarrelRadius`,
+  `TruthNBarrelSides`, `TruthEndcapZ`).
 - `GeoSvcName`: name of the geometry service (default `GeoSvc`). The
   magnetic field used for track pT reconstruction from curvature is taken
   from the DD4hep geometry (Bz at the origin), so the steering file has to
   configure a `GeoSvc` with the detector compact file (`--compactFile`).
-- `reassign_low_p_muons` / `muon_to_charged_hadron_p_threshold`: reassigns a
+- `ReassignLowPMuons` / `MuonToChargedHadronPThreshold`: reassigns a
   charged candidate predicted as muon below a momentum threshold to charged
   hadron instead (on by default) -- a punch-through/misidentified hadron is
   more likely than a genuine muon at that momentum.
-- `writeUnassociatedTracks`: write tracks never assigned to any shower into
+- `WriteUnassociatedTracks`: write tracks never assigned to any shower into
   the `HitPFUnassociatedTracks` output collection (off by default) -- e.g.
   for invariant-mass calculations that want to recover tracks `HitPF` itself
   drops (charged particles that curl up before reaching the calorimeter).
