@@ -33,6 +33,7 @@ find_package(ROOT COMPONENTS RIO Tree)
 find_package(EDM4HEP)
 find_package(k4FWCore)
 find_package(Gaudi)
+find_package(DD4hep REQUIRED COMPONENTS DDCore)
 
 # make sure the onnx find script is found:
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)

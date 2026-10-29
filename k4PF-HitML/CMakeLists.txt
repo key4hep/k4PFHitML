@@ -22,6 +22,8 @@ gaudi_add_module(k4PFHitMLPlugins
                  SOURCES ${_plugin_sources}
                  LINK Gaudi::GaudiKernel
                       k4FWCore::k4FWCore
+                      k4FWCore::k4Interface
+                      DD4hep::DDCore
                       EDM4HEP::edm4hep
                       onnxruntime::onnxruntime
                       torch

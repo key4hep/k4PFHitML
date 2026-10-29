@@ -16,7 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from Configurables import PFHitML
+import os
+
+from Configurables import PFHitML, GeoSvc
 #from Configurables import k4DataSvc
 from Gaudi.Configuration import INFO
 from k4FWCore import ApplicationMgr, IOSvc
@@ -44,7 +46,8 @@ parser_group.add_argument("--truth_barrel_radius", type=float, default=2150., he
 parser_group.add_argument("--truth_n_barrel_sides", type=int, default=12, help="Truth matching: number of barrel polygon sides")
 parser_group.add_argument("--truth_endcap_z", type=float, default=2307., help="Truth matching: detector endcap |z| [mm]")
 
-parser_group.add_argument("--bFieldTesla", type=float, default=2.0, help="Magnetic field strength [T] used for track pT reconstruction from track curvature")
+parser_group.add_argument("--compactFile", help="DD4hep compact file of the detector (used for the magnetic field)",
+                          default=os.path.join(os.environ.get("K4GEO", ""), "FCCee/CLD/compact/CLD_o2_v07/CLD_o2_v07.xml"))
 
 parser_group.add_argument("--reassign_low_p_muons", dest="reassign_low_p_muons", action="store_true", default=True,
                           help="Reassign charged candidates predicted as muon with momentum below "
@@ -67,6 +70,11 @@ svc = IOSvc("IOSvc")
 svc.Input = args.inputFiles
 svc.Output = args.outputFile
 
+geoservice = GeoSvc("GeoSvc")
+geoservice.detectors = [args.compactFile]
+geoservice.OutputLevel = INFO
+geoservice.EnableGeant4Geo = False
+
 
 Multitransformer = PFHitML("PFHitML",
                             model_path_clustering=args.onnx_model_clustering,
@@ -80,7 +88,6 @@ Multitransformer = PFHitML("PFHitML",
                             truth_barrel_radius=args.truth_barrel_radius,
                             truth_n_barrel_sides=args.truth_n_barrel_sides,
                             truth_endcap_z=args.truth_endcap_z,
-                            bFieldTesla=args.bFieldTesla,
                             reassign_low_p_muons=args.reassign_low_p_muons,
                             muon_to_charged_hadron_p_threshold=args.muon_to_charged_hadron_p_threshold,
                             writeUnassociatedTracks=args.writeUnassociatedTracks,
@@ -93,7 +100,7 @@ ApplicationMgr(TopAlg=[Multitransformer],
                EvtSel="NONE",
                EvtMax=args.num_ev,
                #ExtSvc=[k4DataSvc("EventDataSvc")],
-               ExtSvc=[svc],
+               ExtSvc=[geoservice, svc],
                OutputLevel=INFO,
                )
 

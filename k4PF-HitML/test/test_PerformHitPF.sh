@@ -58,6 +58,7 @@ REC_BASENAME_ABS="$(pwd)/${REC_BASENAME}"
 
 k4run k4PF-HitML/options/PerformMLPF.py \
   --inputFiles "${REC_FILE}" \
+  --compactFile "${XML_FILE}" \
   --onnx_model_clustering "${MODEL_CLUSTERING}" \
   --onnx_model_properties_neutral "${MODEL_REGRESSION_NEUTRAL}" \
   --onnx_model_properties_charged "${MODEL_REGRESSION_CHARGED}" \

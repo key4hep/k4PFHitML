@@ -50,6 +50,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// geometry
+#include "DD4hep/DD4hepUnits.h"
+#include "DD4hep/Detector.h"
+#include "k4Interface/IGeoSvc.h"
+
 // ONNX
 #include "ONNXHelper.h"
 #include "onnxruntime_cxx_api.h"
@@ -259,7 +264,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     debug() << "tracks: " << tracks.size() << endmsg;
 
     DataPreprocessing extractor(EcalBarrel_hits, HcalBarrel_hits, EcalEndcap_hits, HcalEndcap_hits, HcalOther_hits,
-                                Muon_hits, tracks, bFieldTesla.value());
+                                Muon_hits, tracks, m_bFieldTesla);
 
     // get input variables
     auto inputs = extractor.extract();
@@ -372,7 +377,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
       }
 
       ParticleRecoInfo recoInfo =
-          buildChargedRecoInfo(showers[idx], pid.physicsClass, pid.score, bFieldTesla.value(),
+          buildChargedRecoInfo(showers[idx], pid.physicsClass, pid.score, m_bFieldTesla,
                                reassign_low_p_muons.value(), muon_to_charged_hadron_p_threshold.value());
       recoInfo.pidScores = pid.scores;
 
@@ -448,6 +453,21 @@ struct PFHitML final : k4FWCore::MultiTransformer<
   }
 
   StatusCode initialize() override {
+    const auto sc = MultiTransformer::initialize();
+    if (sc.isFailure()) {
+      return sc;
+    }
+
+    // magnetic field (z component at the origin) from the DD4hep geometry
+    auto geoSvc = serviceLocator()->service<IGeoSvc>(m_geoSvcName.value());
+    if (!geoSvc) {
+      error() << "Unable to retrieve the GeoSvc '" << m_geoSvcName.value() << "'" << endmsg;
+      return StatusCode::FAILURE;
+    }
+    const auto field = geoSvc->getDetector()->field().magneticField(dd4hep::Position{0, 0, 0});
+    m_bFieldTesla = static_cast<float>(field.z() / dd4hep::tesla);
+    info() << "Using magnetic field Bz = " << m_bFieldTesla << " T from DD4hep" << endmsg;
+
     info() << "Initializing PFHitML and loading model..." << endmsg;
 
     m_onnx = std::make_unique<ONNXHelper>(model_path_clustering.value());
@@ -511,9 +531,10 @@ private:
       this, "truth_endcap_z", 2307.f,
       "Truth matching: detector endcap |z| [mm] used to decide if a vertex is inside the calorimeter"};
 
-  Gaudi::Property<float> bFieldTesla{
-      this, "bFieldTesla", 2.0f,
-      "Magnetic field strength [T] used for track pT reconstruction from track curvature (omega)"};
+  Gaudi::Property<std::string> m_geoSvcName{this, "GeoSvcName", "GeoSvc",
+                                            "Name of the geometry service providing the magnetic field"};
+
+  float m_bFieldTesla{0.f}; // Bz at the origin [T], set in initialize() from DD4hep
 
   Gaudi::Property<bool> reassign_low_p_muons{this, "reassign_low_p_muons", true,
                                              "Reassign charged candidates predicted as muon with momentum below "

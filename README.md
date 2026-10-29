@@ -146,7 +146,7 @@ k4run k4PF-HitML/options/PerformMLPF.py --inputFiles <input.edm4hep.root> --outp
 
 
 `PerformMLPF.py` also accepts all the configurable parameters listed below
-(`--dpc_d_c`, `--bFieldTesla`, `--write_unassociated_tracks`, etc. --
+(`--dpc_d_c`, `--compactFile`, `--write_unassociated_tracks`, etc. --
 run with `--help` for the full list).
 
 The output is a ROOT file containing the input collections (`keep *`) plus
@@ -194,8 +194,10 @@ All exposed as `Gaudi::Property`s on `PFHitML`, settable from
   `dpc_delta_min`, `dpc_core_radius`).
 - Truth matching parameters (`truth_iou_threshold`, `truth_barrel_radius`,
   `truth_n_barrel_sides`, `truth_endcap_z`).
-- Magnetic field strength (`bFieldTesla`), used for track pT reconstruction
-  from curvature.
+- `GeoSvcName`: name of the geometry service (default `GeoSvc`). The
+  magnetic field used for track pT reconstruction from curvature is taken
+  from the DD4hep geometry (Bz at the origin), so the steering file has to
+  configure a `GeoSvc` with the detector compact file (`--compactFile`).
 - `reassign_low_p_muons` / `muon_to_charged_hadron_p_threshold`: reassigns a
   charged candidate predicted as muon below a momentum threshold to charged
   hadron instead (on by default) -- a punch-through/misidentified hadron is
