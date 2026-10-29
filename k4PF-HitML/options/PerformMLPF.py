@@ -40,11 +40,11 @@ parser_group.add_argument("--dpc_delta_min", type=float, default=0.4, help="DPC 
 parser_group.add_argument("--dpc_core_radius", type=float, default=0.5, help="DPC clustering: max distance to a center for a hit to be kept as a core (non-halo) member")
 
 parser_group.add_argument("--truth_iou_threshold", type=float, default=0.25, help="Truth matching: minimum IoU for a shower-to-MCParticle match")
-parser_group.add_argument("--truth_barrel_radius", type=float, default=2150., help="Truth matching: detector barrel radius [mm]")
-parser_group.add_argument("--truth_n_barrel_sides", type=int, default=12, help="Truth matching: number of barrel polygon sides")
-parser_group.add_argument("--truth_endcap_z", type=float, default=2307., help="Truth matching: detector endcap |z| [mm]")
+parser_group.add_argument("--truth_barrel_radius", type=float, default=None, help="Truth matching: detector barrel radius [mm]")
+parser_group.add_argument("--truth_n_barrel_sides", type=int, default=None, help="Truth matching: number of barrel polygon sides")
+parser_group.add_argument("--truth_endcap_z", type=float, default=None, help="Truth matching: detector endcap |z| [mm]")
 
-parser_group.add_argument("--bFieldTesla", type=float, default=2.0, help="Magnetic field strength [T] used for track pT reconstruction from track curvature")
+parser_group.add_argument("--bFieldTesla", type=float, default=None, help="Magnetic field strength [T] used for track pT reconstruction from track curvature")
 
 parser_group.add_argument("--reassign_low_p_muons", dest="reassign_low_p_muons", action="store_true", default=True,
                           help="Reassign charged candidates predicted as muon with momentum below "
@@ -61,7 +61,53 @@ parser_group.add_argument("--write_unassociated_tracks", dest="writeUnassociated
                                "output collection (default: off)")
 parser_group.add_argument("--no_write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_false",
                           help="Disable --write_unassociated_tracks")
+parser_group.add_argument("--detector", choices=["CLD", "ILD"], default="CLD",
+                          help="Detector preset: input collection names and truth-matching geometry")
 args = parser.parse_known_args()[0]
+
+DETECTOR_PRESETS = {
+    "CLD": {
+        "collections": {
+            "EcalBarrelHits":      ["ECALBarrel"],
+            "EcalEndcaplHits":     ["ECALEndcap"],      # sic: "Endcapl" is the property name in PFHitML.cpp
+            "HcalBarrelHits":      ["HCALBarrel"],
+            "HcalEndcapHits":      ["HCALEndcap"],
+            "HcalOtherHits":       ["HCALOther"],
+            "MUON":                ["MUON"],
+            "Tracks":              ["SiTracks_Refitted"],
+            "MCParticles":         ["MCParticles"],
+            "CalohitMCTruthLink":  ["CalohitMCTruthLink"],
+            "SiTracksMCTruthLink": ["SiTracksMCTruthLink"],
+        },
+        "truth_barrel_radius": 2150.,   # ECalBarrel_inner_radius
+        "truth_n_barrel_sides": 12,
+        "truth_endcap_z": 2307.,        # ECalEndcap_min_z
+        "bFieldTesla": 2.0,
+    },
+    "ILD": {
+        "collections": {
+            "EcalBarrelHits":      ["EcalBarrelCollectionRec"],
+            "EcalEndcaplHits":     ["EcalEndcapsCollectionRec"],
+            "HcalBarrelHits":      ["HcalBarrelCollectionRec"],
+            "HcalEndcapHits":      ["HcalEndcapsCollectionRec"],
+            "HcalOtherHits":       ["HcalEndcapRingCollectionRec"],
+            "MUON":                ["MUON"],
+            "Tracks":              ["MarlinTrkTracks"],
+            "MCParticles":         ["MCParticles"],
+            "CalohitMCTruthLink":  ["CalohitMCTruthLink"],
+            "SiTracksMCTruthLink": ["MarlinTrkTracksMCTruthLink"],
+        },
+        "truth_barrel_radius": 1805.,   # TPC_outer_radius 1769.8 + Ecal_Tpc_gap 35
+        "truth_n_barrel_sides": 8,      # Ecal_Hcal_symmetry
+        "truth_endcap_z": 2412.,        # TPC_Ecal_Hcal_barrel_halfZ 2350 + 61.8
+        "bFieldTesla": 2.0,             # ILD_FCCee: 2 T (checked with track pT vs MC)
+    },
+}
+preset = DETECTOR_PRESETS[args.detector]
+
+def pick(name):
+    value = getattr(args, name)
+    return preset[name] if value is None else value
 
 svc = IOSvc("IOSvc")
 svc.Input = args.inputFiles
@@ -77,10 +123,11 @@ Multitransformer = PFHitML("PFHitML",
                             dpc_delta_min=args.dpc_delta_min,
                             dpc_core_radius=args.dpc_core_radius,
                             truth_iou_threshold=args.truth_iou_threshold,
-                            truth_barrel_radius=args.truth_barrel_radius,
-                            truth_n_barrel_sides=args.truth_n_barrel_sides,
-                            truth_endcap_z=args.truth_endcap_z,
-                            bFieldTesla=args.bFieldTesla,
+                            truth_barrel_radius=pick("truth_barrel_radius"),
+                            truth_n_barrel_sides=pick("truth_n_barrel_sides"),
+                            truth_endcap_z=pick("truth_endcap_z"),
+                            bFieldTesla=pick("bFieldTesla"),
+                            **preset["collections"],
                             reassign_low_p_muons=args.reassign_low_p_muons,
                             muon_to_charged_hadron_p_threshold=args.muon_to_charged_hadron_p_threshold,
                             writeUnassociatedTracks=args.writeUnassociatedTracks,
