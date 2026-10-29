@@ -29,6 +29,8 @@
 #include "ROOT/RVec.hxx"
 #include "Shower.h"
 #include "edm4hep/ReconstructedParticleCollection.h"
+#include "edm4hep/TrackState.h"
+#include "edm4hep/Vector3f.h"
 #include <torch/torch.h>
 // #include "Structs.h"
 
@@ -37,5 +39,10 @@ float disperion(Shower shower_i, std::vector<edm4hep::CalorimeterHit>);
 float calculate_eta(float x, float y, float z);
 float calculate_phi(float x, float y);
 std::vector<std::vector<float>> one_hot_encode(std::vector<int>, int n_classes);
+
+// track momentum [GeV] from the helix parameters of a track state, for a field of bFieldTesla [T];
+// returns a null vector for a straight track (omega == 0)
+edm4hep::Vector3f momentumFromTrackState(const edm4hep::TrackState& ts, float bFieldTesla);
+float momentumMagnitude(const edm4hep::Vector3f& p);
 
 #endif // HELPERS_H

@@ -67,6 +67,18 @@ float calculate_eta(float x, float y, float z) {
   return -std::log(tan_half_theta);
 }
 
+edm4hep::Vector3f momentumFromTrackState(const edm4hep::TrackState& ts, float bFieldTesla) {
+  // speed of light in units of GeV / (T mm)
+  constexpr float c_light = 2.99792e-4f;
+  if (ts.omega == 0.f) {
+    return {0.f, 0.f, 0.f};
+  }
+  const float pt = c_light * std::abs(bFieldTesla / ts.omega);
+  return {std::cos(ts.phi) * pt, std::sin(ts.phi) * pt, ts.tanLambda * pt};
+}
+
+float momentumMagnitude(const edm4hep::Vector3f& p) { return std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z); }
+
 std::vector<std::vector<float>> one_hot_encode(std::vector<int> values, int n_classes) {
   std::vector<std::vector<float>> out(values.size(), std::vector<float>(n_classes, 0.0f));
   for (std::size_t i = 0; i < values.size(); ++i) {

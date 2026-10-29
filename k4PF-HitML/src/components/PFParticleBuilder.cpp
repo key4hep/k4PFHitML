@@ -18,6 +18,7 @@
  */
 #include "PFParticleBuilder.h"
 
+#include "Helpers.h"
 #include "Shower.h"
 
 #include "edm4hep/Track.h"
@@ -113,16 +114,6 @@ PIDPrediction decodePIDLogits(const std::vector<float>& logits, const std::vecto
   pred.scores = std::move(scores);
   return pred;
 }
-
-static edm4hep::Vector3f momentumFromTrackState(const edm4hep::TrackState& ts, float bFieldTesla) {
-  const float pt = 2.99792e-4f * std::abs(bFieldTesla / ts.omega);
-  const float px = std::cos(ts.phi) * pt;
-  const float py = std::sin(ts.phi) * pt;
-  const float pz = ts.tanLambda * pt;
-  return {px, py, pz};
-}
-
-static float momentumMagnitude(const edm4hep::Vector3f& p) { return std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z); }
 
 static const edm4hep::Track& pickBestTrack(const Shower& shower) {
   const auto& tracks = shower.getTracks();

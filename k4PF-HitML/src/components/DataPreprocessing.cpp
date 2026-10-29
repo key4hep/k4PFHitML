@@ -106,16 +106,7 @@ PreprocessedData DataPreprocessing::extract() const {
   int trackIndex = 0;
   for (const auto& track : tracks_) {
 
-    auto trackstate = track.getTrackStates()[0];
-    float omega = trackstate.omega;
-    float phi = trackstate.phi;
-    float tanLambda = trackstate.tanLambda;
-
-    float pt = 2.99792e-4f * std::abs(bFieldTesla_ / omega);
-    float px = std::cos(phi) * pt;
-    float py = std::sin(phi) * pt;
-    float pz = tanLambda * pt;
-    float p = std::sqrt(px * px + py * py + pz * pz);
+    float p = momentumMagnitude(momentumFromTrackState(track.getTrackStates()[0], bFieldTesla_));
 
     features["p_tracks"].push_back(p);
     features["e_tracks"].push_back(0);

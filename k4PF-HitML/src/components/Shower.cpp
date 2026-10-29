@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 #include "Shower.h"
+#include "Helpers.h"
 
 ShowerSplit splitShowersByTrackContent(const std::vector<Shower>& showers) {
   ShowerSplit out;
@@ -68,16 +69,7 @@ float Shower::getTrackMomentum_mean(float bFieldTesla) {
 
   float p_sum = 0;
   for (const auto& track : tracks_) {
-    auto trackstate = track.getTrackStates()[0];
-    float omega = trackstate.omega;
-    float phi = trackstate.phi;
-    float tanLambda = trackstate.tanLambda;
-
-    float pt = 2.99792e-4f * std::abs(bFieldTesla / omega);
-    float px = std::cos(phi) * pt;
-    float py = std::sin(phi) * pt;
-    float pz = tanLambda * pt;
-    p_sum += std::sqrt(px * px + py * py + pz * pz);
+    p_sum += momentumMagnitude(momentumFromTrackState(track.getTrackStates()[0], bFieldTesla));
   }
 
   return p_sum / n_tracks;
@@ -164,17 +156,7 @@ const std::tuple<std::vector<float>, std::vector<float>> Shower::get_ep(float bF
   std::vector<float> track_p;
 
   for (const auto& track_i : tracks_) {
-
-    auto trackstate = track_i.getTrackStates()[0];
-    float omega = trackstate.omega;
-    float phi = trackstate.phi;
-    float tanLambda = trackstate.tanLambda;
-
-    float pt = 2.99792e-4f * std::abs(bFieldTesla / omega);
-    float px = std::cos(phi) * pt;
-    float py = std::sin(phi) * pt;
-    float pz = tanLambda * pt;
-    float p = std::sqrt(px * px + py * py + pz * pz);
+    const float p = momentumMagnitude(momentumFromTrackState(track_i.getTrackStates()[0], bFieldTesla));
 
     track_e.push_back(0);
     track_p.push_back(p);
