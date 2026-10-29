@@ -47,7 +47,7 @@ parser_group.add_argument("--truth_n_barrel_sides", type=int, default=12, help="
 parser_group.add_argument("--truth_endcap_z", type=float, default=2307., help="Truth matching: detector endcap |z| [mm]")
 
 parser_group.add_argument("--compactFile", help="DD4hep compact file of the detector (used for the magnetic field)",
-                          default=os.path.join(os.environ.get("K4GEO", ""), "FCCee/CLD/compact/CLD_o2_v07/CLD_o2_v07.xml"))
+                          default=os.path.join(os.environ.get("K4GEO", ""), "FCCee/CLD/compact/CLD_o2_v05/CLD_o2_v05.xml"))
 
 parser_group.add_argument("--reassign_low_p_muons", dest="reassign_low_p_muons", action="store_true", default=True,
                           help="Reassign charged candidates predicted as muon with momentum below "
