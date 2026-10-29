@@ -273,7 +273,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     auto clustering_input = extractor.convertModelInputs(inputs_features);
 
     if (clustering_input.batch_size == 0) {
-      info() << "Event " << m_eventCounter << ": no calorimeter hits or tracks, skipping" << endmsg;
+      debug() << "Event " << m_eventCounter << ": no calorimeter hits or tracks, skipping" << endmsg;
       ++m_eventCounter;
       auto unassoc = edm4hep::TrackCollection{};
       unassoc.setSubsetCollection();
@@ -289,7 +289,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     ////////// Inference Clustering Model //////////
     ///////////////////////////////////////////////////
 
-    info() << "================ EVENT " << m_eventCounter << " ================" << endmsg;
+    debug() << "================ EVENT " << m_eventCounter << " ================" << endmsg;
 
     std::vector<std::vector<float>> outputs = m_onnx->runNamed(clustering_input.inputs);
 
@@ -443,7 +443,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
           HitPFUnassociatedTracks.push_back(trk);
         }
       }
-      info() << "Unassociated tracks: " << HitPFUnassociatedTracks.size() << " / " << tracks.size() << endmsg;
+      debug() << "Unassociated tracks: " << HitPFUnassociatedTracks.size() << " / " << tracks.size() << endmsg;
     }
 
     ++m_eventCounter;
