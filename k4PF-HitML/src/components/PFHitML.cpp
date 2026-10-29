@@ -172,7 +172,7 @@ void dumpChargedRefPointDebug(const Shower& shower, int64_t label, std::size_t e
       bestIdx = i;
     }
   }
-  const auto caloState = tracks[bestIdx].getTrackStates()[3]; // AtCalorimeter
+  const auto caloState = tracks[bestIdx].getTrackState(edm4hep::TrackState::AtCalorimeter).value();
   const auto& p_xyz = caloState.referencePoint;
 
   float sumE = 0.f, x = 0.f, y = 0.f, z = 0.f;
@@ -377,8 +377,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
       }
 
       ParticleRecoInfo recoInfo =
-          buildChargedRecoInfo(showers[idx], pid.physicsClass, pid.score, m_bFieldTesla,
-                               reassign_low_p_muons.value(), muon_to_charged_hadron_p_threshold.value());
+          buildChargedRecoInfo(showers[idx], pid.physicsClass, pid.score, m_bFieldTesla, reassign_low_p_muons.value(),
+                               muon_to_charged_hadron_p_threshold.value());
       recoInfo.pidScores = pid.scores;
 
       evalBuilder.addRecoResult(idx, recoInfo);

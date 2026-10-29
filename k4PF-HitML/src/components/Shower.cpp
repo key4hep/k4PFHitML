@@ -69,7 +69,8 @@ float Shower::getTrackMomentum_mean(float bFieldTesla) {
 
   float p_sum = 0;
   for (const auto& track : tracks_) {
-    p_sum += momentumMagnitude(momentumFromTrackState(track.getTrackStates()[0], bFieldTesla));
+    p_sum +=
+        momentumMagnitude(momentumFromTrackState(track.getTrackState(edm4hep::TrackState::AtIP).value(), bFieldTesla));
   }
 
   return p_sum / n_tracks;
@@ -110,7 +111,7 @@ const std::tuple<std::vector<float>, std::vector<float>, std::vector<float>> Sho
   std::vector<float> track_z;
 
   for (const auto& track_i : tracks_) {
-    auto trackstate_calo = track_i.getTrackStates()[3];
+    auto trackstate_calo = track_i.getTrackState(edm4hep::TrackState::AtCalorimeter).value();
     auto referencePoint_calo = trackstate_calo.referencePoint;
     track_x.push_back(referencePoint_calo.x);
     track_y.push_back(referencePoint_calo.y);
@@ -156,7 +157,8 @@ const std::tuple<std::vector<float>, std::vector<float>> Shower::get_ep(float bF
   std::vector<float> track_p;
 
   for (const auto& track_i : tracks_) {
-    const float p = momentumMagnitude(momentumFromTrackState(track_i.getTrackStates()[0], bFieldTesla));
+    const float p = momentumMagnitude(
+        momentumFromTrackState(track_i.getTrackState(edm4hep::TrackState::AtIP).value(), bFieldTesla));
 
     track_e.push_back(0);
     track_p.push_back(p);

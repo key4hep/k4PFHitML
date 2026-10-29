@@ -160,7 +160,7 @@ static edm4hep::Vector3f energyWeightedBarycenter(const std::vector<edm4hep::Cal
 
 // like Pandora (DDPfoCreator::CalculateTrackBasedReferencePoint), no-sibling branch
 static edm4hep::Vector3f trackReferencePoint(const edm4hep::Track& trk) {
-  const auto& ts = trk.getTrackStates()[0]; // AtIP
+  const auto ts = trk.getTrackState(edm4hep::TrackState::AtIP).value();
   return {ts.D0 * std::cos(ts.phi), ts.D0 * std::sin(ts.phi), ts.Z0};
 }
 
@@ -170,7 +170,7 @@ ParticleRecoInfo buildChargedRecoInfo(const Shower& shower, int predictedClass, 
 
   const auto& trk = pickBestTrack(shower);
   out.tracks = {trk};
-  const auto& ts = trk.getTrackStates()[0]; // AtIP -- momentum, matches Python's pos_pxpypz_at_vertex
+  const auto ts = trk.getTrackState(edm4hep::TrackState::AtIP).value(); // matches Python's pos_pxpypz_at_vertex
 
   const auto p3 = momentumFromTrackState(ts, bFieldTesla);
   const float p = momentumMagnitude(p3);

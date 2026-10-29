@@ -103,17 +103,23 @@ PreprocessedData DataPreprocessing::extract() const {
   }
 
   // extract track information
-  int trackIndex = 0;
-  for (const auto& track : tracks_) {
+  for (int trackIndex = 0; trackIndex < static_cast<int>(tracks_.size()); ++trackIndex) {
+    const auto track = tracks_[trackIndex];
 
-    float p = momentumMagnitude(momentumFromTrackState(track.getTrackStates()[0], bFieldTesla_));
+    // tracks without a state at the IP or at the calorimeter cannot be used as graph nodes
+    const auto trackstate_ip = track.getTrackState(edm4hep::TrackState::AtIP);
+    const auto trackstate_calo = track.getTrackState(edm4hep::TrackState::AtCalorimeter);
+    if (!trackstate_ip || !trackstate_calo) {
+      continue;
+    }
+
+    float p = momentumMagnitude(momentumFromTrackState(*trackstate_ip, bFieldTesla_));
 
     features["p_tracks"].push_back(p);
     features["e_tracks"].push_back(0);
 
     // also add features for trackstate at calo
-    auto trackstate_calo = track.getTrackStates()[3];
-    auto referencePoint_calo = trackstate_calo.referencePoint;
+    auto referencePoint_calo = trackstate_calo->referencePoint;
 
     float x_c = referencePoint_calo.x;
     float y_c = referencePoint_calo.y;
@@ -127,8 +133,6 @@ PreprocessedData DataPreprocessing::extract() const {
     features["hit_type_feature_track"].push_back(htype_c);
 
     hit_mapping.push_back({htype_c, collectionIndex, trackIndex});
-
-    trackIndex += 1;
   }
 
   features["node_energy"] = features["e_hits"];
