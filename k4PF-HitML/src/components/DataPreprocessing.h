@@ -48,8 +48,8 @@ struct PropertyInputs {
 class DataPreprocessing {
 public:
   DataPreprocessing(const edm4hep::CalorimeterHitCollection& EcalBarrel_hits,
-                    const edm4hep::CalorimeterHitCollection& EcalEndcap_hits,
                     const edm4hep::CalorimeterHitCollection& HcalBarrel_hits,
+                    const edm4hep::CalorimeterHitCollection& EcalEndcap_hits,
                     const edm4hep::CalorimeterHitCollection& HcalEndcap_hits,
                     const edm4hep::CalorimeterHitCollection& HcalOther_hits,
                     const edm4hep::CalorimeterHitCollection& Muon_hits, const edm4hep::TrackCollection& tracks,
