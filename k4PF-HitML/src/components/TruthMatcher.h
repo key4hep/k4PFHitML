@@ -34,6 +34,7 @@
 #include <functional>
 #include <limits>
 #include <numbers>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -46,24 +47,24 @@ struct TruthMatchConfig {
   float endCapZ{2307.f};
 };
 
+// The ObjectID of an object is only used for reporting and for a deterministic ordering. It does not identify an
+// object, since collections that have not (yet) been read from or written to a file all have the same (untracked)
+// collection ID. Objects are identified via their handles (operator== and std::hash) instead.
 struct ObjectIDKey {
   int index{-1};
   unsigned collectionID{0};
 
-  bool operator==(const ObjectIDKey& other) const { return index == other.index && collectionID == other.collectionID; }
-
   bool valid() const { return index >= 0; }
 };
 
-struct ObjectIDKeyHash {
-  std::size_t operator()(const ObjectIDKey& key) const {
-    const auto a = static_cast<std::uint64_t>(key.collectionID);
-    const auto b = static_cast<std::uint32_t>(key.index);
-    return std::hash<std::uint64_t>{}((a << 32) ^ b);
-  }
-};
-
 inline ObjectIDKey makeKey(const podio::ObjectID& id) { return ObjectIDKey{id.index, id.collectionID}; }
+
+inline bool objectIDLess(const podio::ObjectID& a, const podio::ObjectID& b) {
+  if (a.index != b.index) {
+    return a.index < b.index;
+  }
+  return a.collectionID < b.collectionID;
+}
 
 struct TruthLabel {
   bool valid{false};
@@ -127,52 +128,42 @@ inline edm4hep::MCParticle remapToCaloMother(edm4hep::MCParticle mc, const Truth
   return mc;
 }
 
+// The (immutable) handle type of the From side of a link collection, e.g. edm4hep::CalorimeterHit
 template <typename LinkCollectionT>
-std::unordered_map<ObjectIDKey, TruthLabel, ObjectIDKeyHash>
+using LinkFromT = std::decay_t<decltype(std::declval<const LinkCollectionT&>()[0].getFrom())>;
+
+template <typename LinkCollectionT>
+std::unordered_map<LinkFromT<LinkCollectionT>, TruthLabel>
 buildBestTruthMap(const LinkCollectionT& links, bool remapCaloMother, const TruthMatchConfig& cfg) {
   struct BestLinkInfo {
     float weight{-std::numeric_limits<float>::infinity()};
     edm4hep::MCParticle mc{};
   };
 
-  std::unordered_map<ObjectIDKey, BestLinkInfo, ObjectIDKeyHash> bestPerObject;
+  std::unordered_map<LinkFromT<LinkCollectionT>, BestLinkInfo> bestPerObject;
 
   for (const auto& link : links) {
-    const auto fromKey = makeKey(link.getFrom().getObjectID());
+    const auto from = link.getFrom();
     const float w = link.getWeight();
 
-    auto it = bestPerObject.find(fromKey);
+    auto it = bestPerObject.find(from);
     if (it == bestPerObject.end() || w > it->second.weight) {
-      bestPerObject[fromKey] = BestLinkInfo{w, link.getTo()};
+      bestPerObject[from] = BestLinkInfo{w, link.getTo()};
     }
   }
 
-  std::unordered_map<ObjectIDKey, TruthLabel, ObjectIDKeyHash> result;
+  std::unordered_map<LinkFromT<LinkCollectionT>, TruthLabel> result;
   result.reserve(bestPerObject.size());
 
-  for (const auto& [objKey, best] : bestPerObject) {
+  for (const auto& [obj, best] : bestPerObject) {
     edm4hep::MCParticle mc = best.mc;
     if (remapCaloMother) {
       mc = remapToCaloMother(mc, cfg);
     }
-    result[objKey] = TruthLabel{mc.isAvailable(), mc, makeKey(mc.getObjectID())};
+    result[obj] = TruthLabel{mc.isAvailable(), mc, makeKey(mc.getObjectID())};
   }
 
   return result;
-}
-
-template <typename T>
-std::vector<T> uniqueVector(std::vector<T> v) {
-  std::sort(v.begin(), v.end(), [](const T& a, const T& b) {
-    if (a.index != b.index) {
-      return a.index < b.index;
-    }
-    return a.collectionID < b.collectionID;
-  });
-  v.erase(std::unique(v.begin(), v.end(),
-                      [](const T& a, const T& b) { return a.index == b.index && a.collectionID == b.collectionID; }),
-          v.end());
-  return v;
 }
 
 // Hungarian maximization by converting to minimization cost.
@@ -265,12 +256,11 @@ matchShowersByIoU(const std::vector<Shower>& showers, const CaloLinkCollectionT&
   const auto hitTruth = truth_detail::buildBestTruthMap(caloTruthLinks, true, cfg);
   const auto trackTruth = truth_detail::buildBestTruthMap(trackTruthLinks, false, cfg);
 
-  const ObjectIDKey backgroundKey{-1, 0};
+  const auto background = edm4hep::MCParticle::makeEmpty();
 
-  std::vector<std::unordered_map<ObjectIDKey, int, ObjectIDKeyHash>> intersections(showers.size());
-  std::vector<std::unordered_map<ObjectIDKey, float, ObjectIDKeyHash>> intersectionsE(showers.size());
-  std::unordered_map<ObjectIDKey, int, ObjectIDKeyHash> truthSizes;
-  std::unordered_map<ObjectIDKey, edm4hep::MCParticle, ObjectIDKeyHash> truthParticles;
+  std::vector<std::unordered_map<edm4hep::MCParticle, int>> intersections(showers.size());
+  std::vector<std::unordered_map<edm4hep::MCParticle, float>> intersectionsE(showers.size());
+  std::unordered_map<edm4hep::MCParticle, int> truthSizes;
   std::vector<int> predSizes(showers.size(), 0);
 
   for (size_t i = 0; i < showers.size(); ++i) {
@@ -278,42 +268,35 @@ matchShowersByIoU(const std::vector<Shower>& showers, const CaloLinkCollectionT&
 
     for (const auto& hit : shower.getCalorimeterHits()) {
       ++predSizes[i];
-      const auto key = makeKey(hit.getObjectID());
-      auto it = hitTruth.find(key);
-      const ObjectIDKey truthKey = (it != hitTruth.end() && it->second.valid) ? it->second.key : backgroundKey;
+      auto it = hitTruth.find(hit);
+      const auto truth = (it != hitTruth.end() && it->second.valid) ? it->second.mc : background;
 
-      intersections[i][truthKey] += 1;
-      intersectionsE[i][truthKey] += hit.getEnergy();
-      truthSizes[truthKey] += 1;
-
-      if (truthKey.valid() && it != hitTruth.end()) {
-        truthParticles[truthKey] = it->second.mc;
-      }
+      intersections[i][truth] += 1;
+      intersectionsE[i][truth] += hit.getEnergy();
+      truthSizes[truth] += 1;
     }
 
     for (const auto& trk : shower.getTracks()) {
       ++predSizes[i];
-      const auto key = makeKey(trk.getObjectID());
-      auto it = trackTruth.find(key);
-      const ObjectIDKey truthKey = (it != trackTruth.end() && it->second.valid) ? it->second.key : backgroundKey;
+      auto it = trackTruth.find(trk);
+      const auto truth = (it != trackTruth.end() && it->second.valid) ? it->second.mc : background;
 
-      intersections[i][truthKey] += 1;
-      truthSizes[truthKey] += 1;
-
-      if (truthKey.valid() && it != trackTruth.end()) {
-        truthParticles[truthKey] = it->second.mc;
-      }
+      intersections[i][truth] += 1;
+      truthSizes[truth] += 1;
     }
   }
 
-  std::vector<ObjectIDKey> truthKeys;
+  std::vector<edm4hep::MCParticle> truthKeys;
   truthKeys.reserve(truthSizes.size());
-  for (const auto& [k, _] : truthSizes) {
-    if (k.valid()) {
-      truthKeys.push_back(k);
+  for (const auto& [mc, _] : truthSizes) {
+    if (mc.isAvailable()) {
+      truthKeys.push_back(mc);
     }
   }
-  truthKeys = truth_detail::uniqueVector(std::move(truthKeys));
+  // Fixed order of the truth particles (rows) for the Hungarian matching
+  std::sort(truthKeys.begin(), truthKeys.end(), [](const edm4hep::MCParticle& a, const edm4hep::MCParticle& b) {
+    return objectIDLess(a.getObjectID(), b.getObjectID());
+  });
 
   if (showers.empty() || truthKeys.empty()) {
     return std::vector<ShowerTruthMatch>(showers.size());
@@ -350,8 +333,8 @@ matchShowersByIoU(const std::vector<Shower>& showers, const CaloLinkCollectionT&
 
     const auto& truthKey = truthKeys[truthRow];
     result[showerCol].matched = true;
-    result[showerCol].key = truthKey;
-    result[showerCol].mc = truthParticles.at(truthKey);
+    result[showerCol].key = makeKey(truthKey.getObjectID());
+    result[showerCol].mc = truthKey;
     result[showerCol].iou = score;
 
     const auto eIt = intersectionsE[showerCol].find(truthKey);
@@ -389,45 +372,41 @@ std::vector<TruthRecoSummary> collectTruthRecoSummaries(const CaloLinkCollection
   const auto hitTruth = truth_detail::buildBestTruthMap(caloTruthLinks, true, cfg);
   const auto trackTruth = truth_detail::buildBestTruthMap(trackTruthLinks, false, cfg);
 
-  std::unordered_map<ObjectIDKey, TruthRecoSummary, ObjectIDKeyHash> out;
-  std::unordered_set<ObjectIDKey, ObjectIDKeyHash> seenHits;
-  std::unordered_set<ObjectIDKey, ObjectIDKeyHash> seenTracks;
+  std::unordered_map<edm4hep::MCParticle, TruthRecoSummary> out;
+  std::unordered_set<truth_detail::LinkFromT<CaloLinkCollectionT>> seenHits;
+  std::unordered_set<truth_detail::LinkFromT<TrackLinkCollectionT>> seenTracks;
 
   for (const auto& link : caloTruthLinks) {
-    const auto fromKey = makeKey(link.getFrom().getObjectID());
-    if (!seenHits.insert(fromKey).second) {
+    const auto hit = link.getFrom();
+    if (!seenHits.insert(hit).second) {
       continue;
     }
 
-    const auto it = hitTruth.find(fromKey);
+    const auto it = hitTruth.find(hit);
     if (it == hitTruth.end() || !it->second.valid) {
       continue;
     }
 
-    auto& row = out[it->second.key];
-    if (!row.key.valid()) {
-      row.key = it->second.key;
-      row.mc = it->second.mc;
-    }
-    row.recoCaloEnergy += link.getFrom().getEnergy();
+    auto& row = out[it->second.mc];
+    row.key = it->second.key;
+    row.mc = it->second.mc;
+    row.recoCaloEnergy += hit.getEnergy();
   }
 
   for (const auto& link : trackTruthLinks) {
-    const auto fromKey = makeKey(link.getFrom().getObjectID());
-    if (!seenTracks.insert(fromKey).second) {
+    const auto trk = link.getFrom();
+    if (!seenTracks.insert(trk).second) {
       continue;
     }
 
-    const auto it = trackTruth.find(fromKey);
+    const auto it = trackTruth.find(trk);
     if (it == trackTruth.end() || !it->second.valid) {
       continue;
     }
 
-    auto& row = out[it->second.key];
-    if (!row.key.valid()) {
-      row.key = it->second.key;
-      row.mc = it->second.mc;
-    }
+    auto& row = out[it->second.mc];
+    row.key = it->second.key;
+    row.mc = it->second.mc;
     row.nTracks += 1;
   }
 

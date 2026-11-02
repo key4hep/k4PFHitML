@@ -433,14 +433,14 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     auto HitPFUnassociatedTracks = edm4hep::TrackCollection{};
     HitPFUnassociatedTracks.setSubsetCollection();
     if (m_writeUnassociatedTracks.value()) {
-      std::unordered_set<ObjectIDKey, ObjectIDKeyHash> usedTrackKeys;
+      std::unordered_set<edm4hep::Track> usedTracks;
       for (const auto& shower_i : showers) {
         for (const auto& trk : shower_i.getTracks()) {
-          usedTrackKeys.insert(makeKey(trk.getObjectID()));
+          usedTracks.insert(trk);
         }
       }
       for (const auto& trk : tracks) {
-        if (usedTrackKeys.find(makeKey(trk.getObjectID())) == usedTrackKeys.end()) {
+        if (usedTracks.find(trk) == usedTracks.end()) {
           HitPFUnassociatedTracks.push_back(trk);
         }
       }

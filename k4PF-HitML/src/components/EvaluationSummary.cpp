@@ -38,7 +38,7 @@ void EvaluationSummaryBuilder::addRecoResult(std::size_t showerIdx, const Partic
 
 std::vector<EvalRow> EvaluationSummaryBuilder::finalize() const {
   std::vector<EvalRow> evalRows;
-  std::unordered_map<ObjectIDKey, std::size_t, ObjectIDKeyHash> truthRowIndex;
+  std::unordered_map<edm4hep::MCParticle, std::size_t> truthRowIndex;
 
   for (const auto& ts : m_truthSummaries) {
     EvalRow row;
@@ -58,7 +58,7 @@ std::vector<EvalRow> EvaluationSummaryBuilder::finalize() const {
     row.vy = static_cast<float>(v.y);
     row.vz = static_cast<float>(v.z);
 
-    truthRowIndex[ts.key] = evalRows.size();
+    truthRowIndex[ts.mc] = evalRows.size();
     evalRows.push_back(row);
   }
 
@@ -71,7 +71,7 @@ std::vector<EvalRow> EvaluationSummaryBuilder::finalize() const {
     const auto& match = m_matches[idx];
 
     if (match.matched) {
-      auto it = truthRowIndex.find(match.key);
+      auto it = truthRowIndex.find(match.mc);
       if (it == truthRowIndex.end()) {
         continue;
       }
