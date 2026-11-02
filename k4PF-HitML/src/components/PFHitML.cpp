@@ -17,37 +17,25 @@
  * limitations under the License.
  */
 
-#include "edm4hep/MCParticleCollection.h"
 #include "edm4hep/ParticleIDCollection.h"
 #include "k4FWCore/Transformer.h"
 #include <string>
 
 // edm4hep imports
-#include "edm4hep/CaloHitMCParticleLinkCollection.h"
 #include "edm4hep/CalorimeterHitCollection.h"
 #include "edm4hep/ClusterCollection.h"
-#include "edm4hep/RecoMCParticleLinkCollection.h"
 #include "edm4hep/ReconstructedParticleCollection.h"
 #include "edm4hep/TrackCollection.h"
-#include "edm4hep/TrackMCParticleLinkCollection.h"
-#include "edm4hep/TrackerHit.h"
 
 // others
 #include "Clustering.h"
 #include "DataPreprocessing.h"
-#include "EvaluationSummary.h"
-#include "Helpers.h"
 #include "PFParticleBuilder.h"
-#include "ROOT/RVec.hxx"
 #include "Shower.h"
 #include "ShowerBuilder.h"
-#include "TruthMatcher.h"
 #include <fstream>
 #include <iomanip>
 #include <limits>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <unordered_map>
 #include <unordered_set>
 
 // geometry
@@ -57,14 +45,7 @@
 
 // ONNX
 #include "ONNXHelper.h"
-#include "onnxruntime_cxx_api.h"
 #include <torch/torch.h>
-
-using RecoTruthLinkCollection = edm4hep::RecoMCParticleLinkCollection;
-using CaloTruthLinkCollection = edm4hep::CaloHitMCParticleLinkCollection;
-using TrackTruthLinkCollection = edm4hep::TrackMCParticleLinkCollection;
-
-namespace rv = ROOT::VecOps;
 
 namespace {
 
@@ -211,49 +192,38 @@ void dumpShowerRegressionOutput(const std::vector<float>& values, int64_t label,
 } // namespace
 
 struct PFHitML final : k4FWCore::MultiTransformer<
-                           std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
-                                      RecoTruthLinkCollection, edm4hep::TrackCollection, edm4hep::ClusterCollection>(
-
+                           std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection, edm4hep::TrackCollection, edm4hep::ClusterCollection>(
                                const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
                                const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
                                const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                               const edm4hep::TrackCollection&, const edm4hep::MCParticleCollection&,
-                               const CaloTruthLinkCollection&, const TrackTruthLinkCollection&
-
-                               )> {
+                               const edm4hep::TrackCollection&)> {
 
   PFHitML(const std::string& name, ISvcLocator* svcLoc)
       : k4FWCore::MultiTransformer<
-            std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection, RecoTruthLinkCollection,
+            std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
                        edm4hep::TrackCollection, edm4hep::ClusterCollection>(
                 const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
                 const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
                 const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                const edm4hep::TrackCollection&, const edm4hep::MCParticleCollection&, const CaloTruthLinkCollection&,
-                const TrackTruthLinkCollection&)>(
+                const edm4hep::TrackCollection&)>(
             name, svcLoc,
             {KeyValues("EcalBarrelHits", {"ECALBarrel"}), KeyValues("HcalBarrelHits", {"HCALBarrel"}),
              KeyValues("EcalEndcapHits", {"ECALEndcap"}), KeyValues("HcalEndcapHits", {"HCALEndcap"}),
              KeyValues("HcalOtherHits", {"HCALOther"}), KeyValues("MuonHits", {"MUON"}),
-             KeyValues("Tracks", {"SiTracks_Refitted"}), KeyValues("MCParticles", {"MCParticles"}),
-             KeyValues("CalohitMCTruthLink", {"CalohitMCTruthLink"}),
-             KeyValues("SiTracksMCTruthLink", {"SiTracksMCTruthLink"})},
+             KeyValues("Tracks", {"SiTracks_Refitted"})},
             {KeyValues("HitPF", {"HitPF"}), KeyValues("HitPFIDs", {"HitPFIDs"}), // Outputs
-             KeyValues("HitPFMCTruthLink", {"HitPFMCTruthLink"}),
              KeyValues("HitPFUnassociatedTracks", {"HitPFUnassociatedTracks"}),
              KeyValues("HitPFClusters", {"HitPFClusters"})}) {}
 
   // main
-  std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection, RecoTruthLinkCollection,
+  std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
              edm4hep::TrackCollection, edm4hep::ClusterCollection>
   operator()(const edm4hep::CalorimeterHitCollection& EcalBarrel_hits,
              const edm4hep::CalorimeterHitCollection& HcalBarrel_hits,
              const edm4hep::CalorimeterHitCollection& EcalEndcap_hits,
              const edm4hep::CalorimeterHitCollection& HcalEndcap_hits,
              const edm4hep::CalorimeterHitCollection& HcalOther_hits,
-             const edm4hep::CalorimeterHitCollection& Muon_hits, const edm4hep::TrackCollection& tracks,
-             const edm4hep::MCParticleCollection&, const CaloTruthLinkCollection& caloTruthLinks,
-             const TrackTruthLinkCollection& trackTruthLinks) const override {
+             const edm4hep::CalorimeterHitCollection& Muon_hits, const edm4hep::TrackCollection& tracks) const override {
 
     debug() << "EcalBarrelHits: " << EcalBarrel_hits.size() << endmsg;
     debug() << "HcalBarrelHits: " << HcalBarrel_hits.size() << endmsg;
@@ -277,7 +247,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
       ++m_eventCounter;
       auto unassoc = edm4hep::TrackCollection{};
       unassoc.setSubsetCollection();
-      return {edm4hep::ReconstructedParticleCollection{}, edm4hep::ParticleIDCollection{}, RecoTruthLinkCollection{},
+      return {edm4hep::ReconstructedParticleCollection{}, edm4hep::ParticleIDCollection{},
               std::move(unassoc), edm4hep::ClusterCollection{}};
     }
 
@@ -329,15 +299,6 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     debug() << "Number of charged showers: " << split.charged.size() << endmsg;
     debug() << "Number of neutral showers: " << split.neutral.size() << endmsg;
 
-    // truth linking
-    TruthMatchConfig truthCfg;
-    truthCfg.iouThreshold = m_truthIoUThreshold.value();
-    truthCfg.barrelRadius = m_truthBarrelRadius.value();
-    truthCfg.nBarrelSides = m_truthNBarrelSides.value();
-    truthCfg.endCapZ = m_truthEndcapZ.value();
-
-    const auto showerTruthMatches = matchShowersByIoU(showers, caloTruthLinks, trackTruthLinks, truthCfg);
-
     ////////////////////////////////////
     //// ENERGY REGRESSION & PID ///////
     ////////////////////////////////////
@@ -359,11 +320,6 @@ struct PFHitML final : k4FWCore::MultiTransformer<
     auto HitPF = edm4hep::ReconstructedParticleCollection{};
     auto HitPFClusters = edm4hep::ClusterCollection{};
     auto HitPFIDs = edm4hep::ParticleIDCollection{};
-    auto HitPFMCTruthLink = RecoTruthLinkCollection{};
-
-    const auto truthSummaries = collectTruthRecoSummaries(caloTruthLinks, trackTruthLinks, truthCfg);
-
-    EvaluationSummaryBuilder evalBuilder(showers, showerTruthMatches, truthSummaries);
 
     // loop over showers per event
     for (size_t idx : split.charged) {
@@ -382,14 +338,10 @@ struct PFHitML final : k4FWCore::MultiTransformer<
                                m_muonToChargedHadronPThreshold.value());
       recoInfo.pidScores = pid.scores;
 
-      evalBuilder.addRecoResult(idx, recoInfo);
-
       const auto recoIndex = HitPF.size();
       fillRecoParticle(HitPF, HitPFIDs, HitPFClusters, showers[idx], recoInfo);
 
       const auto reco = HitPF.at(recoIndex);
-      fillRecoTruthLink(HitPFMCTruthLink, reco, showerTruthMatches[idx]);
-
       const auto pidObj = HitPFIDs.at(recoIndex);
 
       debug() << "=== C++ final charged properties === "
@@ -417,16 +369,11 @@ struct PFHitML final : k4FWCore::MultiTransformer<
                                                        predictedDirection, predictedReferencePoint);
       recoInfo.pidScores = pid.scores;
 
-      evalBuilder.addRecoResult(idx, recoInfo);
-
       const auto recoIndex = HitPF.size();
       fillRecoParticle(HitPF, HitPFIDs, HitPFClusters, showers[idx], recoInfo);
 
       const auto reco = HitPF.at(recoIndex);
-      fillRecoTruthLink(HitPFMCTruthLink, reco, showerTruthMatches[idx]);
     }
-
-    const auto evalRows = evalBuilder.finalize();
 
     // Tracks that never ended up in any shower written out as a subset collection for downstream recovery, e.g.
     // invariant mass calculations.
@@ -449,7 +396,7 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     ++m_eventCounter;
 
-    return {std::move(HitPF), std::move(HitPFIDs), std::move(HitPFMCTruthLink), std::move(HitPFUnassociatedTracks),
+    return {std::move(HitPF), std::move(HitPFIDs), std::move(HitPFUnassociatedTracks),
             std::move(HitPFClusters)}; // outputs
   }
 
@@ -486,8 +433,6 @@ private:
   std::unique_ptr<ONNXHelper> m_onnxCharged;
   mutable std::size_t m_eventCounter{0}; // for debugging
 
-  rv::RVec<std::string> vars;
-
   Gaudi::Property<std::string> m_clusteringModelPath{this, "ClusteringModelPath",
                                                      "/eos/user/l/lherrman/FCC/models/clustering_truth_update.onnx",
                                                      "Path to the ONNX clustering model"};
@@ -517,21 +462,6 @@ private:
   Gaudi::Property<float> m_dpcCoreRadius{
       this, "DPCCoreRadius", 0.5f,
       "DPC clustering: max distance to a center for a hit to be kept as a core (non-halo) member"};
-
-  Gaudi::Property<float> m_truthIoUThreshold{this, "TruthIoUThreshold", 0.25f,
-                                             "Truth matching: minimum IoU for a shower-to-MCParticle match"};
-
-  Gaudi::Property<float> m_truthBarrelRadius{
-      this, "TruthBarrelRadius", 2150.f,
-      "Truth matching: detector barrel radius [mm] used to decide if a vertex is inside the calorimeter"};
-
-  Gaudi::Property<int> m_truthNBarrelSides{
-      this, "TruthNBarrelSides", 12,
-      "Truth matching: number of barrel polygon sides used for the in-calorimeter check"};
-
-  Gaudi::Property<float> m_truthEndcapZ{
-      this, "TruthEndcapZ", 2307.f,
-      "Truth matching: detector endcap |z| [mm] used to decide if a vertex is inside the calorimeter"};
 
   Gaudi::Property<std::string> m_geoSvcName{this, "GeoSvcName", "GeoSvc",
                                             "Name of the geometry service providing the magnetic field"};
