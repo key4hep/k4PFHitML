@@ -42,12 +42,12 @@ parser_group.add_argument("--dpc_delta_min", type=float, default=0.4, help="DPC 
 parser_group.add_argument("--dpc_core_radius", type=float, default=0.5, help="DPC clustering: max distance to a center for a hit to be kept as a core (non-halo) member")
 
 parser_group.add_argument("--truth_iou_threshold", type=float, default=0.25, help="Truth matching: minimum IoU for a shower-to-MCParticle match")
-parser_group.add_argument("--truth_barrel_radius", type=float, default=2150., help="Truth matching: detector barrel radius [mm]")
-parser_group.add_argument("--truth_n_barrel_sides", type=int, default=12, help="Truth matching: number of barrel polygon sides")
-parser_group.add_argument("--truth_endcap_z", type=float, default=2307., help="Truth matching: detector endcap |z| [mm]")
+parser_group.add_argument("--truth_barrel_radius", type=float, default=None, help="Truth matching: detector barrel radius [mm]")
+parser_group.add_argument("--truth_n_barrel_sides", type=int, default=None, help="Truth matching: number of barrel polygon sides")
+parser_group.add_argument("--truth_endcap_z", type=float, default=None, help="Truth matching: detector endcap |z| [mm]")
 
-parser_group.add_argument("--compactFile", help="DD4hep compact file of the detector (used for the magnetic field)",
-                          default=os.path.join(os.environ.get("K4GEO", ""), "FCCee/CLD/compact/CLD_o2_v05/CLD_o2_v05.xml"))
+parser_group.add_argument("--compactFile", default=None,
+                          help="DD4hep compact file of the detector, used for the magnetic field (default: from --detector)")
 
 parser_group.add_argument("--reassign_low_p_muons", dest="reassign_low_p_muons", action="store_true", default=True,
                           help="Reassign charged candidates predicted as muon with momentum below "
@@ -64,14 +64,60 @@ parser_group.add_argument("--write_unassociated_tracks", dest="writeUnassociated
                                "output collection (default: off)")
 parser_group.add_argument("--no_write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_false",
                           help="Disable --write_unassociated_tracks")
+parser_group.add_argument("--detector", choices=["CLD", "ILD"], default="CLD",
+                          help="Detector preset: input collection names and truth-matching geometry")
 args = parser.parse_known_args()[0]
+
+DETECTOR_PRESETS = {
+    "CLD": {
+        "collections": {
+            "EcalBarrelHits":      ["ECALBarrel"],
+            "EcalEndcapHits":      ["ECALEndcap"],
+            "HcalBarrelHits":      ["HCALBarrel"],
+            "HcalEndcapHits":      ["HCALEndcap"],
+            "HcalOtherHits":       ["HCALOther"],
+            "MuonHits":            ["MUON"],
+            "Tracks":              ["SiTracks_Refitted"],
+            "MCParticles":         ["MCParticles"],
+            "CalohitMCTruthLink":  ["CalohitMCTruthLink"],
+            "SiTracksMCTruthLink": ["SiTracksMCTruthLink"],
+        },
+        "truth_barrel_radius": 2150.,   # ECalBarrel_inner_radius
+        "truth_n_barrel_sides": 12,
+        "truth_endcap_z": 2307.,        # ECalEndcap_min_z
+        "compact": "FCCee/CLD/compact/CLD_o2_v05/CLD_o2_v05.xml",
+    },
+    "ILD": {
+        "collections": {
+            "EcalBarrelHits":      ["EcalBarrelCollectionRec"],
+            "EcalEndcapHits":      ["EcalEndcapsCollectionRec"],
+            "HcalBarrelHits":      ["HcalBarrelCollectionRec"],
+            "HcalEndcapHits":      ["HcalEndcapsCollectionRec"],
+            "HcalOtherHits":       ["HcalEndcapRingCollectionRec"],
+            "MuonHits":            ["MUON"],
+            "Tracks":              ["MarlinTrkTracks"],
+            "MCParticles":         ["MCParticles"],
+            "CalohitMCTruthLink":  ["CalohitMCTruthLink"],
+            "SiTracksMCTruthLink": ["MarlinTrkTracksMCTruthLink"],
+        },
+        "truth_barrel_radius": 1805.,   # TPC_outer_radius 1769.8 + Ecal_Tpc_gap 35
+        "truth_n_barrel_sides": 8,      # Ecal_Hcal_symmetry
+        "truth_endcap_z": 2412.,        # TPC_Ecal_Hcal_barrel_halfZ 2350 + 61.8
+        "compact": "FCCee/ILD_FCCee/compact/ILD_FCCee_v01/ILD_FCCee_v01.xml",
+    },
+}
+preset = DETECTOR_PRESETS[args.detector]
+
+def pick(name):
+    value = getattr(args, name)
+    return preset[name] if value is None else value
 
 svc = IOSvc("IOSvc")
 svc.Input = args.inputFiles
 svc.Output = args.outputFile
 
 geoservice = GeoSvc("GeoSvc")
-geoservice.detectors = [args.compactFile]
+geoservice.detectors = [args.compactFile or os.path.join(os.environ.get("K4GEO", ""), preset["compact"])]
 geoservice.OutputLevel = INFO
 geoservice.EnableGeant4Geo = False
 
@@ -85,9 +131,10 @@ hitpf = PFHitML("PFHitML",
                 DPCMinDelta=args.dpc_delta_min,
                 DPCCoreRadius=args.dpc_core_radius,
                 TruthIoUThreshold=args.truth_iou_threshold,
-                TruthBarrelRadius=args.truth_barrel_radius,
-                TruthNBarrelSides=args.truth_n_barrel_sides,
-                TruthEndcapZ=args.truth_endcap_z,
+                TruthBarrelRadius=pick("truth_barrel_radius"),
+                TruthNBarrelSides=pick("truth_n_barrel_sides"),
+                TruthEndcapZ=pick("truth_endcap_z"),
+                **preset["collections"],
                 ReassignLowPMuons=args.reassign_low_p_muons,
                 MuonToChargedHadronPThreshold=args.muon_to_charged_hadron_p_threshold,
                 WriteUnassociatedTracks=args.writeUnassociatedTracks,
