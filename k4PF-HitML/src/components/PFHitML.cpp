@@ -191,21 +191,21 @@ void dumpShowerRegressionOutput(const std::vector<float>& values, int64_t label,
 
 } // namespace
 
-struct PFHitML final : k4FWCore::MultiTransformer<
-                           std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection, edm4hep::TrackCollection, edm4hep::ClusterCollection>(
-                               const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                               const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                               const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                               const edm4hep::TrackCollection&)> {
+struct PFHitML final
+    : k4FWCore::MultiTransformer<std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
+                                            edm4hep::TrackCollection, edm4hep::ClusterCollection>(
+          const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
+          const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
+          const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
+          const edm4hep::TrackCollection&)> {
 
   PFHitML(const std::string& name, ISvcLocator* svcLoc)
-      : k4FWCore::MultiTransformer<
-            std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
-                       edm4hep::TrackCollection, edm4hep::ClusterCollection>(
-                const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
-                const edm4hep::TrackCollection&)>(
+      : k4FWCore::MultiTransformer<std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
+                                              edm4hep::TrackCollection, edm4hep::ClusterCollection>(
+            const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
+            const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
+            const edm4hep::CalorimeterHitCollection&, const edm4hep::CalorimeterHitCollection&,
+            const edm4hep::TrackCollection&)>(
             name, svcLoc,
             {KeyValues("EcalBarrelHits", {"ECALBarrel"}), KeyValues("HcalBarrelHits", {"HCALBarrel"}),
              KeyValues("EcalEndcapHits", {"ECALEndcap"}), KeyValues("HcalEndcapHits", {"HCALEndcap"}),
@@ -216,14 +216,15 @@ struct PFHitML final : k4FWCore::MultiTransformer<
              KeyValues("HitPFClusters", {"HitPFClusters"})}) {}
 
   // main
-  std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection,
-             edm4hep::TrackCollection, edm4hep::ClusterCollection>
+  std::tuple<edm4hep::ReconstructedParticleCollection, edm4hep::ParticleIDCollection, edm4hep::TrackCollection,
+             edm4hep::ClusterCollection>
   operator()(const edm4hep::CalorimeterHitCollection& EcalBarrel_hits,
              const edm4hep::CalorimeterHitCollection& HcalBarrel_hits,
              const edm4hep::CalorimeterHitCollection& EcalEndcap_hits,
              const edm4hep::CalorimeterHitCollection& HcalEndcap_hits,
              const edm4hep::CalorimeterHitCollection& HcalOther_hits,
-             const edm4hep::CalorimeterHitCollection& Muon_hits, const edm4hep::TrackCollection& tracks) const override {
+             const edm4hep::CalorimeterHitCollection& Muon_hits,
+             const edm4hep::TrackCollection& tracks) const override {
 
     debug() << "EcalBarrelHits: " << EcalBarrel_hits.size() << endmsg;
     debug() << "HcalBarrelHits: " << HcalBarrel_hits.size() << endmsg;
@@ -247,8 +248,8 @@ struct PFHitML final : k4FWCore::MultiTransformer<
       ++m_eventCounter;
       auto unassoc = edm4hep::TrackCollection{};
       unassoc.setSubsetCollection();
-      return {edm4hep::ReconstructedParticleCollection{}, edm4hep::ParticleIDCollection{},
-              std::move(unassoc), edm4hep::ClusterCollection{}};
+      return {edm4hep::ReconstructedParticleCollection{}, edm4hep::ParticleIDCollection{}, std::move(unassoc),
+              edm4hep::ClusterCollection{}};
     }
 
     if (m_eventCounter < m_maxDumpEvents) {

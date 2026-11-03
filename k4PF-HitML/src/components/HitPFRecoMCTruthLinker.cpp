@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
- #include "Shower.h"
+#include "Shower.h"
 #include "TruthMatcher.h"
 
 #include "edm4hep/CaloHitMCParticleLinkCollection.h"
@@ -35,10 +35,9 @@ struct HitPFRecoMCTruthLinker final
                                                                   const edm4hep::TrackMCParticleLinkCollection&)> {
   HitPFRecoMCTruthLinker(const std::string& name, ISvcLocator* svcLoc)
       : Transformer(name, svcLoc,
-                    {KeyValues("RecoParticles", {"HitPF"}),
-                     KeyValues("CalohitMCTruthLink", {"CalohitMCTruthLink"}),
+                    {KeyValues("RecoParticles", {"HitPF"}), KeyValues("CalohitMCTruthLink", {"CalohitMCTruthLink"}),
                      KeyValues("TrackMCTruthLink", {"TrackMCTruthLink"})},
-                     KeyValues("RecoMCTruthLink", {"HitPFMCTruthLink"})) {}
+                    KeyValues("RecoMCTruthLink", {"HitPFMCTruthLink"})) {}
 
   edm4hep::RecoMCParticleLinkCollection
   operator()(const edm4hep::ReconstructedParticleCollection& recoParticles,
