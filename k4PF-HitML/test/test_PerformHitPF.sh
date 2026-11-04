@@ -63,6 +63,6 @@ k4run k4PF-HitML/options/PerformMLPF.py \
   --onnx_model_properties_neutral "${MODEL_REGRESSION_NEUTRAL}" \
   --onnx_model_properties_charged "${MODEL_REGRESSION_CHARGED}" \
   --outputFile ${OUTPUT_FILE} \
-  --num_ev ${NEV}
+  --num-events ${NEV}
 
 python3 k4PF-HitML/test/check_output.py ${OUTPUT_FILE}
