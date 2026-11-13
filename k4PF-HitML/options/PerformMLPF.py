@@ -58,9 +58,9 @@ parser_group.add_argument("--muon_to_charged_hadron_p_threshold", type=float, de
                                "to charged hadron (if --reassign_low_p_muons is set)")
 
 parser_group.add_argument("--write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_true",
-                          default=False,
+                          default=True,
                           help="Write tracks not assigned to any shower into the HitPFUnassociatedTracks "
-                               "output collection (default: off)")
+                               "output collection (default: on)")
 parser_group.add_argument("--no_write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_false",
                           help="Disable --write_unassociated_tracks")
 parser_group.add_argument("--onnx_intra_op_threads", type=int, default=1,
