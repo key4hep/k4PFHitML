@@ -482,7 +482,7 @@ private:
       "set)"};
 
   Gaudi::Property<bool> m_writeUnassociatedTracks{
-      this, "WriteUnassociatedTracks", false,
+      this, "WriteUnassociatedTracks", true,
       "Write tracks that were not assigned to any shower (DPC noise or failed the E/p consistency "
       "check) into the HitPFUnassociatedTracks output collection"};
 
