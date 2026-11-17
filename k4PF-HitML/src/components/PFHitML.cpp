@@ -471,11 +471,14 @@ struct PFHitML final : k4FWCore::MultiTransformer<
 
     info() << "Initializing PFHitML and loading model..." << endmsg;
 
-    m_onnxClustering = std::make_unique<ONNXHelper>(m_clusteringModelPath.value());
+    m_onnxClustering = std::make_unique<ONNXHelper>(m_clusteringModelPath.value(), m_onnxIntraOpThreads.value(),
+                                                    m_onnxArenaShrink.value());
 
-    m_onnxNeutral = std::make_unique<ONNXHelper>(m_neutralModelPath.value());
+    m_onnxNeutral = std::make_unique<ONNXHelper>(m_neutralModelPath.value(), m_onnxIntraOpThreads.value(),
+                                                 m_onnxArenaShrink.value());
 
-    m_onnxCharged = std::make_unique<ONNXHelper>(m_chargedModelPath.value());
+    m_onnxCharged = std::make_unique<ONNXHelper>(m_chargedModelPath.value(), m_onnxIntraOpThreads.value(),
+                                                 m_onnxArenaShrink.value());
 
     return StatusCode::SUCCESS;
   }
@@ -551,6 +554,16 @@ private:
       this, "WriteUnassociatedTracks", false,
       "Write tracks that were not assigned to any shower (DPC noise or failed the E/p consistency "
       "check) into the HitPFUnassociatedTracks output collection"};
+
+  Gaudi::Property<int> m_onnxIntraOpThreads{
+      this, "OnnxIntraOpThreads", 1,
+      "Number of threads ONNX Runtime may use within a single inference call (per model session)"};
+
+  Gaudi::Property<bool> m_onnxArenaShrink{
+      this, "OnnxArenaShrink", true,
+      "Release unused ONNX Runtime CPU arena memory after every inference call. Without it the arena keeps "
+      "the memory needed by the largest event for the whole job (about 1-2 GB more RSS on CLD Z events, "
+      "for ~1% more CPU time with it enabled)"};
 };
 
 DECLARE_COMPONENT(PFHitML)

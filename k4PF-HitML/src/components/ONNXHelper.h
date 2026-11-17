@@ -58,9 +58,11 @@ public:
    * @brief Constructor to initialize the ONNXHelper environment and session.
    *
    * @param model_path Path to the ONNX model file.
-   * @param input_names List of input variable names to bind during inference.
+   * @param intraOpThreads Number of threads ONNX Runtime may use inside one inference call.
+   * @param shrinkArenaAfterRun Return the memory of the session's CPU arena that is no longer in use after
+   *        every inference call, instead of keeping the arena at its high-water mark for the whole job.
    */
-  explicit ONNXHelper(const std::string& model_path = "");
+  explicit ONNXHelper(const std::string& model_path = "", int intraOpThreads = 1, bool shrinkArenaAfterRun = false);
 
   /**
    * @brief Destructor to clean up the ONNXHelper environment and session.
@@ -121,6 +123,7 @@ private:
   std::unique_ptr<Ort::Session> m_session;      ///< Pointer to the ONNX Runtime session object.
   Ort::AllocatorWithDefaultOptions m_allocator; ///< Allocator for ONNX Runtime tensors.
   Ort::MemoryInfo m_cpu_mem_info;
+  Ort::RunOptions m_runOptions; ///< Options passed to every inference call.
 
   std::vector<std::string> m_inputNodeStrings;                  ///< List of input node names.
   std::vector<std::string> m_outputNodeStrings;                 ///< List of output node names.

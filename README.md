@@ -203,6 +203,14 @@ All exposed as `Gaudi::Property`s on `PFHitML`, settable from
   charged candidate predicted as muon below a momentum threshold to charged
   hadron instead (on by default) -- a punch-through/misidentified hadron is
   more likely than a genuine muon at that momentum.
+- `OnnxArenaShrink` (default on; `--no_onnx_arena_shrink`): release the
+  unused part of ONNX Runtime's CPU memory arena after every inference
+  call. Without it the arena stays at the size needed by the largest event
+  seen (it grows in power-of-two chunks, up to ~2 GB on CLD Z events) for the
+  rest of the job; with it, RSS is 1-2 GB lower for about 1% more CPU time.
+  Only this algorithm's sessions are affected.
+- `OnnxIntraOpThreads` (default 1; `--onnx_intra_op_threads`): threads ONNX
+  Runtime may use within one inference call.
 - `WriteUnassociatedTracks`: write tracks never assigned to any shower into
   the `HitPFUnassociatedTracks` output collection (off by default) -- e.g.
   for invariant-mass calculations that want to recover tracks `HitPF` itself

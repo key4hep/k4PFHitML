@@ -27,13 +27,19 @@
 
 // taken from https://github.com/key4hep/k4MLJetTagger/blob/main/k4MLJetTagger/src/components/ONNXRuntime.h
 
-ONNXHelper::ONNXHelper(const std::string& model_path)
+ONNXHelper::ONNXHelper(const std::string& model_path, int intraOpThreads, bool shrinkArenaAfterRun)
     : m_env(new Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, "onnx_runtime")), m_allocator(),
       m_cpu_mem_info(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)) {
   if (model_path.empty())
     throw std::runtime_error("Path to ONNX model cannot be empty!");
   Ort::SessionOptions options;
-  options.SetIntraOpNumThreads(1);
+  options.SetIntraOpNumThreads(intraOpThreads);
+  if (shrinkArenaAfterRun) {
+    // The CPU arena grows (in power-of-two chunks) to fit the largest activations seen so far and by default
+    // keeps that memory for the lifetime of the session. With this run option every Run() hands fully free
+    // chunks back to the system afterwards. It only affects this session's arena.
+    m_runOptions.AddConfigEntry("memory.enable_memory_arena_shrinkage", "cpu:0");
+  }
   std::string model{model_path};
   m_session = std::make_unique<Ort::Session>(*m_env, model.c_str(), options);
 
@@ -136,8 +142,8 @@ ONNXHelper::Tensor<T> ONNXHelper::run(Tensor<T>& input, const Tensor<long>& inpu
   }
 
   // run the inference
-  auto output_tensors = m_session->Run(Ort::RunOptions{nullptr}, input_node_names.data(), tensors_in.data(),
-                                       tensors_in.size(), output_node_names.data(), output_node_names.size());
+  auto output_tensors = m_session->Run(m_runOptions, input_node_names.data(), tensors_in.data(), tensors_in.size(),
+                                       output_node_names.data(), output_node_names.size());
   // convert output tensor to values
   Tensor<T> outputs;
   size_t i = 0;
@@ -201,8 +207,8 @@ ONNXHelper::Tensor<float> ONNXHelper::runNamed(std::vector<ONNXInput>& inputs) c
     output_node_names.push_back(name.c_str());
   }
 
-  auto output_tensors = m_session->Run(Ort::RunOptions{nullptr}, input_node_names.data(), tensors_in.data(),
-                                       tensors_in.size(), output_node_names.data(), output_node_names.size());
+  auto output_tensors = m_session->Run(m_runOptions, input_node_names.data(), tensors_in.data(), tensors_in.size(),
+                                       output_node_names.data(), output_node_names.size());
 
   Tensor<float> outputs;
   for (auto& output_tensor : output_tensors) {
