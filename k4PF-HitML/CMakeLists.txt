@@ -36,21 +36,20 @@ install(TARGETS k4PFHitMLPlugins
   PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/@{CMAKE_PROJECT_NAME}"
   COMPONENT dev)
 
-include(CTest)
+if(BUILD_TESTING)
+  SET(test_name "test_PerformHitPF")
+  ExternalData_Add_Test(${test_name}
+      NAME ${test_name}
+      COMMAND sh +x k4PF-HitML/test/test_PerformHitPF.sh
+              DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/clustering_test.onnx}
+              DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/regression_neutral_test.onnx}
+              DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/regression_charged_test.onnx})
+  set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+  ExternalData_Add_Target(${test_name})
 
-SET(test_name "test_PerformHitPF")
-ExternalData_Add_Test(${test_name}
-    NAME ${test_name}
-    COMMAND sh +x k4PF-HitML/test/test_PerformHitPF.sh
-            DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/clustering_test.onnx}
-            DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/regression_neutral_test.onnx}
-            DATA{${CMAKE_SOURCE_DIR}/k4PF-HitML/test/models/regression_charged_test.onnx})
-set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-ExternalData_Add_Target(${test_name})
+  get_filename_component(CURRENT_DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
-get_filename_component(CURRENT_DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-
-set(test_environment "\
+  set(test_environment "\
 LD_LIBRARY_PATH=\
 ${PROJECT_BINARY_DIR}:\
 ${PROJECT_BINARY_DIR}/${PROJECT_NAME}:\
@@ -71,7 +70,8 @@ ${PROJECT_BINARY_DIR}/${PROJECT_NAME}/genConfDir:\
 ${CMAKE_CURRENT_BINARY_DIR}/genConfDir:\
 $ENV{PYTHONPATH};\
 "
-)
-get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
-set_tests_properties(${test_names} PROPERTIES ENVIRONMENT "${test_environment}")
+  )
+  get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
+  set_tests_properties(${test_names} PROPERTIES ENVIRONMENT "${test_environment}")
+endif()
 
