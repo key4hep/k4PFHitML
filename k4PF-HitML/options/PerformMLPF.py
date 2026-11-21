@@ -64,6 +64,11 @@ parser_group.add_argument("--write_unassociated_tracks", dest="writeUnassociated
                                "output collection (default: off)")
 parser_group.add_argument("--no_write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_false",
                           help="Disable --write_unassociated_tracks")
+parser_group.add_argument("--onnx_intra_op_threads", type=int, default=1,
+                          help="Threads ONNX Runtime may use within one inference call (default: 1)")
+parser_group.add_argument("--no_onnx_arena_shrink", dest="onnxArenaShrink", action="store_false", default=True,
+                          help="Keep the ONNX Runtime CPU arena at its high-water mark instead of releasing "
+                               "unused memory after every inference call")
 parser_group.add_argument("--detector", choices=["CLD", "ILD"], default="CLD",
                           help="Detector preset: input collection names and truth-matching geometry")
 args = parser.parse_known_args()[0]
@@ -138,6 +143,8 @@ hitpf = PFHitML("PFHitML",
                 ReassignLowPMuons=args.reassign_low_p_muons,
                 MuonToChargedHadronPThreshold=args.muon_to_charged_hadron_p_threshold,
                 WriteUnassociatedTracks=args.writeUnassociatedTracks,
+                OnnxIntraOpThreads=args.onnx_intra_op_threads,
+                OnnxArenaShrink=args.onnxArenaShrink,
                 )
 
 
