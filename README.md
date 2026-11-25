@@ -18,9 +18,6 @@ From the root of the repository:
 
 ``` bash
 source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
-k4_local_repo
-cmake -S . -B build -DCMAKE_INSTALL_PREFIX=install -G Ninja -DPython_EXECUTABLE=$(which python3)
-ninja -C build install
 
 mkdir -p models
 for model in clustering_paper.onnx \
@@ -70,7 +67,7 @@ The output file contains the input collections (`keep *`) plus:
 
 ### Conventions
 
-| Quantity | Charged | Neutral |
+| Property | Charged | Neutral |
 |---|---|---|
 | Energy | Driving track's `\|p\|` | Regression output |
 | Charge | Sign of the driving track's curvature (`omega > 0` -> +1) | 0 |
