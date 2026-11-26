@@ -18,7 +18,7 @@
 #
 import os
 
-from Configurables import PFHitML, GeoSvc
+from Configurables import PFHitML, HitPFRecoMCTruthLinker, GeoSvc
 #from Configurables import k4DataSvc
 from Gaudi.Configuration import INFO
 from k4FWCore import ApplicationMgr, IOSvc
@@ -31,7 +31,6 @@ parser_group = parser.add_argument_group("PerformMLPF.py custom options")
 parser_group.add_argument("--inputFiles", nargs="+", metavar=("file1", "file2"), required=True,
                           help="One or multiple input files")
 parser_group.add_argument("--outputFile", default="output_HitPF.edm4hep.root")
-parser_group.add_argument("--num_ev", type=int, help="Number of events to process (-1 means all)", default=-1)
 parser_group.add_argument("--onnx_model_clustering", help="Path to ONNX model used for clustering", default="models/clustering_paper.onnx")
 parser_group.add_argument("--onnx_model_properties_neutral", help="Path to neutral ONNX model used for energy regression and PID", default="models/energy_correction_paper_neutral.onnx")
 parser_group.add_argument("--onnx_model_properties_charged", help="Path to charged ONNX model used for PID", default="models/energy_correction_paper_charged_pid.onnx")
@@ -59,9 +58,9 @@ parser_group.add_argument("--muon_to_charged_hadron_p_threshold", type=float, de
                                "to charged hadron (if --reassign_low_p_muons is set)")
 
 parser_group.add_argument("--write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_true",
-                          default=False,
+                          default=True,
                           help="Write tracks not assigned to any shower into the HitPFUnassociatedTracks "
-                               "output collection (default: off)")
+                               "output collection (default: on)")
 parser_group.add_argument("--no_write_unassociated_tracks", dest="writeUnassociatedTracks", action="store_false",
                           help="Disable --write_unassociated_tracks")
 parser_group.add_argument("--onnx_intra_op_threads", type=int, default=1,
@@ -135,11 +134,17 @@ hitpf = PFHitML("PFHitML",
                 DPCMinDensity=args.dpc_rho_min,
                 DPCMinDelta=args.dpc_delta_min,
                 DPCCoreRadius=args.dpc_core_radius,
-                TruthIoUThreshold=args.truth_iou_threshold,
-                TruthBarrelRadius=pick("truth_barrel_radius"),
-                TruthNBarrelSides=pick("truth_n_barrel_sides"),
-                TruthEndcapZ=pick("truth_endcap_z"),
-                **preset["collections"],
+                EcalBarrelHits=preset["collections"]["EcalBarrelHits"],
+                EcalEndcapHits=preset["collections"]["EcalEndcapHits"],
+                HcalBarrelHits=preset["collections"]["HcalBarrelHits"],
+                HcalEndcapHits=preset["collections"]["HcalEndcapHits"],
+                HcalOtherHits=preset["collections"]["HcalOtherHits"],
+                MuonHits=preset["collections"]["MuonHits"],
+                Tracks=preset["collections"]["Tracks"],
+                HitPF=["HitPF"],
+                HitPFIDs=["HitPFIDs"],
+                HitPFUnassociatedTracks=["HitPFUnassociatedTracks"],
+                HitPFClusters=["HitPFClusters"],
                 ReassignLowPMuons=args.reassign_low_p_muons,
                 MuonToChargedHadronPThreshold=args.muon_to_charged_hadron_p_threshold,
                 WriteUnassociatedTracks=args.writeUnassociatedTracks,
@@ -147,12 +152,26 @@ hitpf = PFHitML("PFHitML",
                 OnnxArenaShrink=args.onnxArenaShrink,
                 )
 
+linker = HitPFRecoMCTruthLinker("HitPFRecoMCTruthLinker",
+                                RecoParticles=["HitPF"],
+                                CalohitMCTruthLink=preset["collections"]["CalohitMCTruthLink"],
+                                TrackMCTruthLink=preset["collections"]["SiTracksMCTruthLink"],
+                                RecoMCTruthLink=["HitPFMCTruthLink"],
+                                TruthIoUThreshold=args.truth_iou_threshold,
+                                TruthBarrelRadius=pick("truth_barrel_radius"),
+                                TruthNBarrelSides=pick("truth_n_barrel_sides"),
+                                TruthEndcapZ=pick("truth_endcap_z"),
+                                )
+
+
+
+
 
 svc.outputCommands = ["keep *"]
 
-ApplicationMgr(TopAlg=[hitpf],
+ApplicationMgr(TopAlg=[hitpf, linker],
                EvtSel="NONE",
-               EvtMax=args.num_ev,
+               EvtMax=-1,
                #ExtSvc=[k4DataSvc("EventDataSvc")],
                ExtSvc=[geoservice, svc],
                OutputLevel=INFO,
